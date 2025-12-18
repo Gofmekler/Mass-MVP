@@ -4,11 +4,16 @@ from model.element_db import ELEMENTS
 
 
 class UnknownSample:
-    def __init__(self, mixture=False):
+    def __init__(self, mixture=False, specific_element=None):
         self.mixture = mixture
+        self.specific_element = specific_element
         self.components = self._generate()
 
     def _generate(self):
+        if self.specific_element:
+            # Используем заданный элемент
+            return [(Ion(ELEMENTS[self.specific_element]), 1.0)]
+
         keys = list(ELEMENTS.keys())
         if not self.mixture:
             k = random.choice(keys)

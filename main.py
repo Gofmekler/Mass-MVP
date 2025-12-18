@@ -6,9 +6,12 @@ from view.main_window import MainWindow
 
 def main():
     app = QtWidgets.QApplication(sys.argv)
+    app.setStyle("Fusion")
+
     ctrl = SimulationController()
     win = MainWindow(ctrl)
     win.show()
+
     sys.exit(app.exec())
 
 
