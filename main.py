@@ -1,19 +1,32 @@
+"""MassLab — лабораторная работа «Времяпролётный масс-спектрометр».
+
+Запуск:  python main.py
+Проверка сборки (окно закроется само):  python main.py --smoke-test
+"""
+import random
 import sys
-from PySide6 import QtWidgets
-from controller.simulation_controller import SimulationController
-from view.main_window import MainWindow
+
+import numpy as np
+from PySide6 import QtCore, QtWidgets
+
+from masslab.presenters.app import AppPresenter
+from masslab.views.qt.main_window import MainWindow
 
 
-def main():
-    app = QtWidgets.QApplication(sys.argv)
+def main(argv):
+    app = QtWidgets.QApplication(argv)
     app.setStyle("Fusion")
-
-    ctrl = SimulationController()
-    win = MainWindow(ctrl)
-    win.show()
-
-    sys.exit(app.exec())
+    window = MainWindow()
+    presenter = AppPresenter(window, random.Random(), np.random.default_rng())
+    presenter.start()
+    if "--smoke-test" in argv:
+        window.set_close_confirmation(None)
+        QtCore.QTimer.singleShot(2000, app.quit)
+        window.show()
+    else:
+        window.showMaximized()
+    return app.exec()
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main(sys.argv))

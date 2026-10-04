@@ -1,0 +1,50 @@
+"""Готовые к отображению данные, которые презентеры передают видам."""
+from dataclasses import dataclass, field
+
+
+@dataclass(frozen=True)
+class Curve:
+    x: tuple
+    y: tuple
+    color: str
+    label: str = ""
+    style: str = "-"
+    width: float = 1.5
+    alpha: float = 1.0
+    animate: bool = True     # участвует ли в анимации «полёта» ионов
+
+
+@dataclass(frozen=True)
+class Marker:
+    x: float
+    label: str
+    color: str
+
+
+@dataclass(frozen=True)
+class PlotData:
+    title: str
+    x_label: str
+    y_label: str
+    curves: tuple = ()
+    markers: tuple = ()
+    x_lim: tuple = None
+    y_lim: tuple = None
+    y_log: bool = False
+
+
+@dataclass(frozen=True)
+class ReportRow:
+    title: str
+    duration: str
+    attempts: str
+
+
+@dataclass(frozen=True)
+class ReportData:
+    student: str
+    group: str
+    finished_at: str
+    rows: tuple = field(default_factory=tuple)
+    total: str = ""
+    verdict: str = ""
