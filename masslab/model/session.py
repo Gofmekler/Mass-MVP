@@ -11,6 +11,17 @@ STAGE_TITLES = {
 }
 
 
+@dataclass(frozen=True)
+class StageReport:
+    """Данные этапа для отчёта: факты, таблица и исследованный график."""
+    title: str
+    facts: tuple = ()          # ((название, значение), ...)
+    table_headers: tuple = ()
+    table_rows: tuple = ()
+    notes: tuple = ()          # строки текста (например, вопросы и ответы)
+    plot: object = None        # PlotData
+
+
 @dataclass
 class StageRecord:
     started_at: float = None
@@ -27,12 +38,15 @@ class LabSession:
         self.finished_at = None
         self.current = None
         self.records = {stage: StageRecord() for stage in STAGES}
+        self.reports = {}      # этап → StageReport для PDF-отчёта
 
     def start_stage(self, stage):
         self.records[stage].started_at = self._clock()
         self.current = stage
 
-    def finish_stage(self, stage, attempts):
+    def finish_stage(self, stage, attempts, report=None):
+        if report is not None:
+            self.reports[stage] = report
         record = self.records[stage]
         record.finished_at = self._clock()
         record.attempts = attempts

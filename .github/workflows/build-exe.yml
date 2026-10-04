@@ -1,8 +1,7 @@
 name: Build Windows exe
 
+# Запускается только вручную: Actions → Build Windows exe → Run workflow.
 on:
-  push:
-    branches: [main, master, "claude/**"]
   workflow_dispatch:
 
 jobs:
@@ -14,13 +13,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.8"   # последняя версия Python для Windows 7
       - name: Install dependencies
-        run: python -m pip install -r requirements-dev.txt
+        run: python -m pip install -r requirements-win7.txt
       - name: Tests
         run: python -m pytest -q
       - name: Build exe
-        run: python -m PyInstaller --noconfirm --clean --windowed --name MassLab --exclude-module tkinter main.py
+        run: python -m PyInstaller --noconfirm --clean --windowed --name MassLab --exclude-module tkinter --exclude-module PySide6 main.py
       - name: Smoke test exe
         shell: pwsh
         run: |

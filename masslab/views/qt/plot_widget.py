@@ -1,6 +1,7 @@
 """Пассивный график: рисует переданный PlotData и сообщает о положении курсора."""
 import numpy as np
-from PySide6 import QtCore, QtWidgets
+
+from masslab.views.qt.qt import QtCore, QtWidgets  # до matplotlib: задаёт QT_API
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
@@ -28,9 +29,10 @@ class PlotWidget(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._fig = Figure(figsize=(6, 3), dpi=90, facecolor=PLOT_BG)
-        self._fig.subplots_adjust(left=0.08, right=0.98, top=0.9, bottom=0.17)
+        self._fig = Figure(figsize=(5, 2.5), dpi=90, facecolor=PLOT_BG,
+                           constrained_layout=True)
         self._canvas = FigureCanvas(self._fig)
+        self._canvas.setMinimumHeight(140)
         self._ax = self._fig.add_subplot(111)
         layout = QtWidgets.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -55,7 +57,7 @@ class PlotWidget(QtWidgets.QWidget):
         ax = self._ax
         ax.clear()
         ax.set_facecolor(PLOT_BG)
-        ax.tick_params(colors=TEXT, labelsize=9)
+        ax.tick_params(colors=TEXT, labelsize=8)
         for spine in ax.spines.values():
             spine.set_color("#555")
         ax.grid(True, color="#333", linewidth=0.6)
@@ -85,15 +87,15 @@ class PlotWidget(QtWidgets.QWidget):
             ax.annotate(m.label, xy=(m.x, 1.0), xycoords=("data", "axes fraction"),
                         xytext=(3, -14), textcoords="offset points", color=m.color,
                         fontsize=10, fontweight="bold")
-        ax.set_title(plot.title, color=TEXT, fontsize=11)
-        ax.set_xlabel(plot.x_label, color=TEXT, fontsize=10)
-        ax.set_ylabel(plot.y_label, color=TEXT, fontsize=10)
+        ax.set_title(plot.title, color=TEXT, fontsize=10)
+        ax.set_xlabel(plot.x_label, color=TEXT, fontsize=9)
+        ax.set_ylabel(plot.y_label, color=TEXT, fontsize=9)
         if plot.x_lim:
             ax.set_xlim(*plot.x_lim)
         if plot.y_lim:
             ax.set_ylim(*plot.y_lim)
         if any(c.label for c in plot.curves):
-            legend = ax.legend(loc="lower right", fontsize=9, facecolor="#2A2A2A",
+            legend = ax.legend(loc="lower right", fontsize=8, facecolor="#2A2A2A",
                                edgecolor="#555", labelcolor=TEXT)
             legend.set_draggable(True)
         if self._animated:
@@ -124,7 +126,7 @@ class PlotWidget(QtWidgets.QWidget):
         lo, hi = ax.get_xlim()
         right = x > (lo + hi) / 2
         self._cursor.append(ax.annotate(
-            text, xy=(x, 0.93), xycoords=("data", "axes fraction"),
+            text, xy=(x, 0.80), xycoords=("data", "axes fraction"),
             xytext=(-8 if right else 8, 0), textcoords="offset points",
             ha="right" if right else "left", color="#FFEB3B", fontsize=10,
             bbox=dict(boxstyle="round,pad=0.3", fc="#2A2A2A", ec="#FFEB3B", alpha=0.9)))

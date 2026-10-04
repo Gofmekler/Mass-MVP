@@ -1,5 +1,6 @@
 from masslab.model.question_bank import QUESTION_BANK
 from masslab.model.quiz import Quiz
+from masslab.model.session import STAGE_TITLES, StageReport
 
 
 class QuizPresenter:
@@ -74,6 +75,10 @@ class QuizPresenter:
 
     def _on_result_action(self):
         if self._passed:
-            self._on_completed(self._attempts)
+            quiz = self._quiz
+            self._on_completed(self._attempts, StageReport(
+                STAGE_TITLES["quiz"],
+                facts=(("Результат", f"{quiz.score()} из {quiz.size} (зачёт от {quiz.pass_score})"),
+                       ("Попыток", str(self._attempts)))))
         else:
             self._new_attempt()

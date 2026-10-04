@@ -1,0 +1,8 @@
+# Сборка для Windows 7 (и новее): Python 3.8 — последняя версия Python для Windows 7,
+# PySide2 (Qt 5.15) — последняя Qt-привязка с поддержкой Windows 7.
+PySide2==5.15.2.1
+matplotlib==3.7.5
+numpy==1.24.4
+qrcode==7.4.2
+pytest==8.3.5
+pyinstaller==5.13.2

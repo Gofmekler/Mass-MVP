@@ -1,6 +1,10 @@
-from masslab.model.tasks import AlloyTask
-from masslab.presenters.formatting import reference_rows
+from masslab.model.session import STAGE_TITLES, StageReport
+from masslab.model.tasks import ALLOY_HINTS, AlloyTask
+from masslab.presenters.formatting import num, reference_rows
+from masslab.presenters.hints import HintTracker
 from masslab.presenters.workspace import WorkspacePresenter
+
+REPORT_PEAKS = 12
 
 
 class AlloyPresenter:
@@ -12,6 +16,7 @@ class AlloyPresenter:
         self._on_completed = on_completed
         self._ws = WorkspacePresenter(view.workspace, np_rng, noise=0.003,
                                       peak_threshold=0.01, show_mass=True)
+        self._hints = HintTracker(view.show_hint, ALLOY_HINTS)
         self._task = None
         self._attempts = 0
         view.check_requested.connect(self._on_check)
@@ -23,9 +28,9 @@ class AlloyPresenter:
         self._view.show_reference(reference_rows(with_isotopes=True))
         self._show_sample()
         self._view.show_feedback("", None)
+        self._hints.reset()
 
     def _show_sample(self):
-        self._view.clear_inputs()
         self._view.set_options([f"{a.name}: {a.composition_text()}" for a in self._task.options])
         self._ws.set_peaks(self._task.peaks())
 
@@ -37,7 +42,8 @@ class AlloyPresenter:
         self._attempts += 1
         if self._task.check(option):
             self._view.show_feedback("Верно! Задание 3 выполнено.", True)
-            self._on_completed(self._attempts)
+            self._hints.reset()
+            self._on_completed(self._attempts, self._report())
             return
         alloy = self._task.alloy
         self._task.new_sample()
@@ -45,3 +51,20 @@ class AlloyPresenter:
         self._view.show_feedback(
             f"Неверно. Это был сплав «{alloy.name}» ({alloy.composition_text()}). "
             "Выдан новый образец.", False)
+        self._hints.failed()
+
+    def _report(self):
+        alloy = self._task.alloy
+        peaks = sorted(self._ws.found_peaks(), key=lambda p: -p[1])[:REPORT_PEAKS]
+        top = max((h for _, h in peaks), default=1.0)
+        rows = tuple((num(mz, 1), num(h / top * 100, 1) + " %")
+                     for mz, h in sorted(peaks))
+        return StageReport(
+            STAGE_TITLES["task3"],
+            facts=(("Ускоряющее напряжение U", f"{self._ws.voltage} В"),
+                   ("Длина дрейфовой трубки L", f"{num(self._ws.length, 2)} м"),
+                   ("Определённый сплав", alloy.name),
+                   ("Состав (масс. %)", alloy.composition_text())),
+            table_headers=("m/z", "Относительная высота пика"),
+            table_rows=rows,
+            plot=self._ws.last_spectrum)

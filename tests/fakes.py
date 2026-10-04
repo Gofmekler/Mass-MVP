@@ -1,4 +1,8 @@
 """Поддельные пассивные виды для тестирования презентеров без Qt."""
+import hashlib
+
+TEST_PASSWORD = "тестовый-пароль"
+TEST_PASSWORD_SHA256 = hashlib.sha256(TEST_PASSWORD.encode("utf-8")).hexdigest()
 from masslab.events import Event
 
 
@@ -32,7 +36,8 @@ class FakeView:
 
 
 def workspace():
-    return FakeView(["voltage_changed", "log_scale_toggled", "spectrum_hovered"])
+    return FakeView(["voltage_changed", "length_changed", "log_scale_toggled",
+                     "spectrum_hovered"])
 
 
 def task_view(*events, **returns):
@@ -41,17 +46,25 @@ def task_view(*events, **returns):
     return view
 
 
+LAUNCHER_EVENTS = ("launch_requested", "double_charge_toggled")
+
+
 class FakeMainView(FakeView):
     def __init__(self):
-        super().__init__(["tick"], confirm=True)
-        self.login = FakeView(["start_requested"], student_name="Иванов И. И.",
-                              student_group="ФИЗ-101")
+        super().__init__(["tick", "theory_requested", "help_requested", "tour_next",
+                          "tour_skip"], confirm=True)
+        self.login = FakeView(["start_requested", "secret_entered"],
+                              student_name="Иванов И. И.", student_group="ФИЗ-101")
         self.quiz = FakeView(["answer_selected", "next_requested", "prev_requested",
                               "finish_requested", "result_action_requested"])
-        self.demo = task_view("launch_requested", "answer_selected", "check_requested")
+        self.demo = task_view(*LAUNCHER_EVENTS, "answer_selected", "check_requested",
+                              selected_elements=lambda: ["H", "Ar"],
+                              double_charge_enabled=False)
         self.element = task_view("check_requested")
         self.alloy = task_view("check_requested")
-        self.report = FakeView(["new_session_requested", "exit_requested"])
+        self.report = FakeView(["new_session_requested", "exit_requested", "export_requested"])
+        self.sandbox = task_view(*LAUNCHER_EVENTS, "gas_toggled", "exit_requested",
+                                 selected_elements=lambda: ["H"], double_charge_enabled=True)
 
 
 class FakeClock:
