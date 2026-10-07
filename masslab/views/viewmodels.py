@@ -54,6 +54,7 @@ class QuestionItem:
     options: tuple
     selected: int = None
     locked: bool = False     # уже решён верно — изменить нельзя
+    correct: int = None      # режим преподавателя: номер верного варианта
 
 
 @dataclass(frozen=True)
@@ -73,3 +74,25 @@ class ReportData:
     total: str = ""
     verdict: str = ""
     stages: tuple = ()       # StageReport для PDF
+
+
+@dataclass(frozen=True)
+class BuildPeak:
+    """Пик для анимации «спектр складывается из отсчётов»."""
+    label: str
+    color: str
+    time_us: float
+    share: float             # доля ионов этого вида (высота пика)
+
+
+@dataclass(frozen=True)
+class AccelIon:
+    label: str
+    color: str
+    speed: float             # относительная скорость после ускорения (у самого быстрого 1)
+
+
+@dataclass(frozen=True)
+class TheoryVisual:
+    kind: str                # см. masslab.model.theory
+    data: object = None

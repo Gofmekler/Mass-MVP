@@ -44,7 +44,7 @@ class QuestionWidget(QtWidgets.QWidget):
             style += f" color: {color};"
         self._label.setStyleSheet(style)
 
-    def set_question(self, text, options, selected=None, locked=False):
+    def set_question(self, text, options, selected=None, locked=False, correct=None):
         self._label.setText(("✓ " if locked else "") + text)
         self._label.setVisible(bool(text))
         self._label_style("#81C784" if locked else None)
@@ -60,9 +60,12 @@ class QuestionWidget(QtWidgets.QWidget):
             row_layout = QtWidgets.QHBoxLayout(row)
             row_layout.setContentsMargins(0, 2, 0, 2)
             button = QtWidgets.QRadioButton()
-            label = _OptionLabel(option, button)
-            if self._font_size:
-                label.setStyleSheet(f"font-size: {self._font_size - 2}px;")
+            is_correct = i == correct
+            label = _OptionLabel(option + ("   ✓ верный ответ" if is_correct else ""), button)
+            style = f"font-size: {self._font_size - 2}px;" if self._font_size else ""
+            if is_correct:
+                style += " color: #81C784; font-weight: bold;"
+            label.setStyleSheet(style)
             row_layout.addWidget(button, 0, QtCore.Qt.AlignTop)
             row_layout.addWidget(label, 1)
             self._group.addButton(button, i)
@@ -114,13 +117,17 @@ class FeedbackLabel(QtWidgets.QLabel):
 
 
 class HintBox(QtWidgets.QLabel):
-    """Жёлтая плашка с подсказкой после нескольких ошибок."""
+    """Плашка с подсказкой (жёлтая) или ответом преподавателю (зелёная)."""
 
-    def __init__(self, parent=None):
+    YELLOW = ("background-color: #3D3520; color: #FFE082; border: 1px solid #8D6E00; "
+              "border-radius: 5px; padding: 8px;")
+    GREEN = ("background-color: #1B3320; color: #A5D6A7; border: 1px solid #2E7D32; "
+             "border-radius: 5px; padding: 8px; font-weight: bold;")
+
+    def __init__(self, parent=None, style=YELLOW):
         super().__init__(parent)
         self.setWordWrap(True)
-        self.setStyleSheet("background-color: #3D3520; color: #FFE082; border: 1px solid "
-                           "#8D6E00; border-radius: 5px; padding: 8px;")
+        self.setStyleSheet(style)
         self.hide()
 
     def show_hint(self, text):

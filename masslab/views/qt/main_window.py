@@ -1,32 +1,12 @@
 from masslab.events import Event
 from masslab.views.qt.pages import LoginView, QuizView, ReportView
-from masslab.views.qt.qt import QtCore, QtWidgets
-from masslab.views.qt.scheme_widget import SchemeWidget
+from masslab.views.qt.qt import QtCore, QtWidgets, exec_app
 from masslab.views.qt.style import ACCENT, CHIP_STYLES, STYLESHEET
 from masslab.views.qt.task_views import AlloyView, DemoView, ElementView, SandboxView
+from masslab.views.qt.theory_view import TheoryView
 from masslab.views.qt.tour_overlay import TourOverlay
 
 MIN_WIDTH, MIN_HEIGHT = 1000, 680
-
-
-class TheoryDialog(QtWidgets.QDialog):
-    """Методичка: схема прибора и краткая теория (немодальное окно)."""
-
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.setWindowTitle("Методичка — времяпролётный масс-спектрометр")
-        self.setStyleSheet(STYLESHEET)
-        self.scheme = SchemeWidget()
-        self.scheme.setFixedHeight(170)
-        self.text = QtWidgets.QTextBrowser()
-        self.text.setStyleSheet("QTextBrowser { background-color: #242424; padding: 10px; "
-                                "font-size: 13px; }")
-        close = QtWidgets.QPushButton("Закрыть")
-        close.clicked.connect(self.close)
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.addWidget(self.scheme)
-        layout.addWidget(self.text, 1)
-        layout.addWidget(close, 0, QtCore.Qt.AlignRight)
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -44,7 +24,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tour_next = Event()
         self.tour_skip = Event()
         self._close_text = None
-        self._theory = None
 
         self.login = LoginView()
         self.quiz = QuizView()
@@ -53,6 +32,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.alloy = AlloyView()
         self.report = ReportView()
         self.sandbox = SandboxView()
+        self.theory = TheoryView(self)
         self._pages = {"login": self.login, "quiz": self.quiz, "task1": self.demo,
                        "task2": self.element, "task3": self.alloy, "report": self.report,
                        "sandbox": self.sandbox}
@@ -139,31 +119,26 @@ class MainWindow(QtWidgets.QMainWindow):
         self._timer.setText(text)
 
     def show_message(self, title, text):
-        QtWidgets.QMessageBox.information(self, title, text)
+        box = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Information, title, text,
+                                    QtWidgets.QMessageBox.NoButton, self)
+        box.addButton("Продолжить", QtWidgets.QMessageBox.AcceptRole)
+        exec_app(box)
 
     def confirm(self, title, text):
-        answer = QtWidgets.QMessageBox.question(self, title, text)
-        return answer == QtWidgets.QMessageBox.Yes
+        box = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Question, title, text,
+                                    QtWidgets.QMessageBox.NoButton, self)
+        yes = box.addButton("Да", QtWidgets.QMessageBox.YesRole)
+        no = box.addButton("Нет", QtWidgets.QMessageBox.NoRole)
+        box.setDefaultButton(no)
+        box.setEscapeButton(no)
+        exec_app(box)
+        return box.clickedButton() is yes
 
     def set_close_confirmation(self, text):
         self._close_text = text
 
     def close_app(self):
         self.close()
-
-    def show_theory(self, html, scheme):
-        if self._theory is None:
-            self._theory = TheoryDialog(self)
-            screen = self.screen().availableGeometry() if hasattr(self, "screen") else None
-            width, height = 860, 640
-            if screen is not None:
-                width, height = min(width, screen.width() - 40), min(height, screen.height() - 60)
-            self._theory.resize(width, height)
-        self._theory.text.setHtml(html)
-        self._theory.scheme.show_scheme(scheme)
-        self._theory.show()
-        self._theory.raise_()
-        self._theory.activateWindow()
 
     def show_tour_step(self, target, title, text, index, total):
         self._overlay.show_step(self._tour_target(target), title, text, index, total)
@@ -175,6 +150,5 @@ class MainWindow(QtWidgets.QMainWindow):
         if self._close_text and not self.confirm("Выход", self._close_text):
             event.ignore()
             return
-        if self._theory is not None:
-            self._theory.close()
+        self.theory.close()
         event.accept()
