@@ -333,24 +333,57 @@ def test_element_invalid_time_is_not_an_attempt():
 
 # --- задание 3 --------------------------------------------------------
 
-def test_alloy_flow():
+def _alloy():
     done = []
-    state = {"option": None}
-    view = task_view("check_requested", selected_option=lambda: state["option"])
+    state = {"option": None, "elements": []}
+    view = task_view("elements_check_requested", "check_requested",
+                     selected_option=lambda: state["option"],
+                     selected_elements=lambda: list(state["elements"]))
     presenter = AlloyPresenter(view, random.Random(5), np_rng(), lambda n, r: done.append((n, r)))
     presenter.start()
-    view.check_requested.emit()
+    return presenter, view, done, state
+
+
+def test_alloy_step2_locked_until_elements_found():
+    presenter, view, done, state = _alloy()
+    assert view.last("set_step") == (1,)
+    state["option"] = presenter._task.options.index(presenter._task.alloy)
+    view.check_requested.emit()                      # шаг 2 ещё закрыт
+    assert done == [] and presenter._attempts == 0
+
+
+def test_alloy_step1_wrong_keeps_sample_and_explains():
+    presenter, view, done, state = _alloy()
+    alloy = presenter._task.alloy
+    view.elements_check_requested.emit()             # ничего не отмечено — не попытка
     assert presenter._attempts == 0
+    extra = next(s for s in presenter._task.element_choices() if s not in alloy.symbols)
+    state["elements"] = [alloy.major_symbols[0], extra]
+    view.elements_check_requested.emit()
+    text, ok = view.last("show_elements_feedback")
+    assert ok is False and "лишних: 1" in text
+    assert (len(alloy.major_symbols) == 1) or "не отмечено" in text
+    assert presenter._task.alloy is alloy and view.last("set_step") == (1,)
 
+
+def test_alloy_full_flow_two_steps():
+    presenter, view, done, state = _alloy()
     task = presenter._task
+    state["elements"] = list(task.alloy.major_symbols)
+    view.elements_check_requested.emit()
+    assert view.last("set_step") == (2,) and view.last("show_elements_feedback")[1] is True
+
     state["option"] = (task.options.index(task.alloy) + 1) % 5
-    view.check_requested.emit()
-    assert done == [] and presenter._attempts == 1
+    view.check_requested.emit()                      # ошибка на шаге 2 — новый образец
+    assert done == [] and view.last("set_step") == (1,)
+    assert presenter._task.alloy is not None and "шага 1" in view.last("show_feedback")[0]
 
     task = presenter._task
+    state["elements"] = list(task.alloy.symbols)     # с добавками тоже верно
+    view.elements_check_requested.emit()
     state["option"] = task.options.index(task.alloy)
     view.check_requested.emit()
-    assert done[0][0] == 2
+    assert done[0][0] == 4
     report = done[0][1]
     assert dict(report.facts)["Определённый сплав"] == task.alloy.name
     assert report.table_rows
@@ -490,6 +523,7 @@ def test_teacher_demo_reveals_answers_everywhere():
     app._stages["task2"]._on_completed(1, None)
     alloy = app._stages["task3"]._task
     assert view.alloy.last("set_options")[1] == alloy.options.index(alloy.alloy)
+    assert tuple(view.alloy.last("set_element_choices")[1]) == alloy.alloy.major_symbols
     app._stages["task3"]._on_completed(1, None)
     assert view.report.last("show_report")[0].verdict == "ДЕМОНСТРАЦИЯ"
 

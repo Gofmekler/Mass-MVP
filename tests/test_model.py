@@ -266,6 +266,17 @@ def test_element_task_has_unlabelled_unknown_peak():
     assert set(labels) - {"?"} == {ion_label(c) for c in CALIBRANTS}
 
 
+def test_alloy_check_elements_minor_optional():
+    from masslab.model.alloys import ALLOYS
+    task = AlloyTask(random.Random(0))
+    task.alloy = next(a for a in ALLOYS if a.name.startswith("Дуралюмин"))
+    assert task.alloy.major_symbols == ("Al", "Cu")
+    assert task.check_elements(["Al", "Cu"]).passed
+    assert task.check_elements(["Al", "Cu", "Mg", "Mn"]).passed      # добавки можно отметить
+    r = task.check_elements(["Al", "Fe"])
+    assert r.missing == ("Cu",) and r.extra == ("Fe",) and not r.passed
+
+
 @pytest.mark.parametrize("seed", range(10))
 def test_alloy_task_options(seed):
     task = AlloyTask(random.Random(seed))

@@ -63,7 +63,7 @@ class FakeMainView(FakeView):
                               selected_elements=lambda: ["H", "Ar"],
                               double_charge_enabled=False)
         self.element = task_view("check_requested")
-        self.alloy = task_view("check_requested")
+        self.alloy = task_view("elements_check_requested", "check_requested")
         self.report = FakeView(["new_session_requested", "exit_requested", "export_requested"])
         self.sandbox = task_view(*LAUNCHER_EVENTS, "gas_toggled", "exit_requested",
                                  selected_elements=lambda: ["H"], double_charge_enabled=True)

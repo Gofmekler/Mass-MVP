@@ -36,9 +36,12 @@ def _stage_reports():
                  o=task.options.index(task.unknown.symbol))
     view.check_requested.emit()
 
-    view = task_view("check_requested", selected_option=lambda: state["a"])
+    view = task_view("elements_check_requested", "check_requested",
+                     selected_option=lambda: state["a"],
+                     selected_elements=lambda: list(alloy._task.alloy.major_symbols))
     alloy = AlloyPresenter(view, rng, np_rng, lambda n, r: reports.append(r))
     alloy.start()
+    view.elements_check_requested.emit()
     state["a"] = alloy._task.options.index(alloy._task.alloy)
     view.check_requested.emit()
     return reports

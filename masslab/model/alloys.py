@@ -14,6 +14,16 @@ class Alloy:
     def symbols(self):
         return tuple(symbol for symbol, _ in self.composition)
 
+    @property
+    def major_symbols(self):
+        """Основные элементы (их пики хорошо видны)."""
+        return tuple(s for s, w in self.composition if w >= MINOR_PERCENT)
+
+    @property
+    def minor_symbols(self):
+        """Малые добавки: отмечать в задании необязательно."""
+        return tuple(s for s, w in self.composition if w < MINOR_PERCENT)
+
     def composition_text(self):
         return ", ".join(f"{symbol} {_percent(w)} %" for symbol, w in self.composition)
 
@@ -30,6 +40,9 @@ class Alloy:
             for mass, abundance in ELEMENTS[symbol].isotope_peaks():
                 result.append(Peak(mass, fraction * abundance))
         return result
+
+
+MINOR_PERCENT = 2.0    # добавки меньше 2 % по массе считаются малыми
 
 
 def _percent(w):
@@ -50,3 +63,8 @@ ALLOYS = (
     Alloy("Припой ПОС-61", (("Sn", 61), ("Pb", 39))),
     Alloy("Титановый сплав ВТ6", (("Ti", 90), ("Al", 6), ("V", 4))),
 )
+
+
+# Элементы, из которых студент выбирает состав образца (по возрастанию массы)
+ALLOY_ELEMENTS = tuple(sorted({s for a in ALLOYS for s in a.symbols},
+                              key=lambda s: ELEMENTS[s].mass))

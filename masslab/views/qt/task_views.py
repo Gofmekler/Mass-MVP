@@ -290,18 +290,71 @@ class ElementView(_ChoiceTaskView):
 
 
 class AlloyView(_ChoiceTaskView):
-    """Задание 3 (IAlloyView)."""
+    """Задание 3 (IAlloyView): шаг 1 — элементы образца, шаг 2 — сплав."""
 
     def __init__(self, parent=None):
         super().__init__(
             "Задание 3. Состав сплава",
-            "Образец сплава испарён и ионизирован. Здесь учтён реальный изотопный состав "
-            "элементов, поэтому каждый элемент даёт несколько пиков.<br><br>"
-            "Прибор откалиброван: при наведении на пик показывается m/z. Определите, какие "
-            "элементы присутствуют и в каком соотношении, сравнив пики с изотопами в "
-            "справочнике. При ошибке выдаётся новый образец.",
+            "Образец сплава испарён и ионизирован. Здесь учтён реальный изотопный состав, "
+            "поэтому каждый элемент даёт несколько пиков. При наведении на пик "
+            "показывается m/z.<br><br>"
+            "<b>Шаг 1.</b> Сравните пики с изотопами в справочнике и отметьте элементы, "
+            "которые есть в образце. Малые добавки (меньше 2 %) отмечать необязательно.<br>"
+            "<b>Шаг 2.</b> Выберите сплав. При ошибке на шаге 2 выдаётся новый образец.",
             ["Символ", "Элемент", "Масса", "Изотопы (содержание)"],
             "Какой это сплав?")
-        group = QtWidgets.QGroupBox("Ответ")
-        QtWidgets.QVBoxLayout(group).addWidget(self._choice)
-        self._finish_panel(self._answer, group, self._check, self._feedback, self._hint)
+        self.elements_check_requested = Event()
+
+        self._step1 = QtWidgets.QGroupBox("Шаг 1. Какие элементы есть в образце?")
+        step1_layout = QtWidgets.QVBoxLayout(self._step1)
+        self._elements_grid = QtWidgets.QGridLayout()
+        self._elements_grid.setHorizontalSpacing(12)
+        step1_layout.addLayout(self._elements_grid)
+        self._element_boxes = {}
+        self._elements_check = QtWidgets.QPushButton("Проверить элементы")
+        self._elements_check.setObjectName("primary")
+        self._elements_check.clicked.connect(self.elements_check_requested.emit)
+        self._elements_feedback = FeedbackLabel()
+        step1_layout.addWidget(self._elements_check)
+        step1_layout.addWidget(self._elements_feedback)
+
+        self._step2 = QtWidgets.QGroupBox("Шаг 2. Какой это сплав?")
+        step2_layout = QtWidgets.QVBoxLayout(self._step2)
+        self._choice.set_question("", [])
+        step2_layout.addWidget(self._choice)
+        step2_layout.addWidget(self._check)
+        self._question_text = ""
+        self._finish_panel(self._answer, self._step1, self._step2, self._feedback, self._hint)
+
+    def tour_targets(self):
+        targets = super().tour_targets()
+        targets.update({"elements": self._step1, "options": self._step2})
+        return targets
+
+    def set_element_choices(self, items, correct=None):
+        for box in self._element_boxes.values():
+            self._elements_grid.removeWidget(box)
+            box.deleteLater()
+        self._element_boxes = {}
+        correct = set(correct or ())
+        for i, (symbol, text) in enumerate(items):
+            box = QtWidgets.QCheckBox(text + ("  ✓" if symbol in correct else ""))
+            if symbol in correct:
+                box.setStyleSheet("color: #81C784; font-weight: bold;")
+            self._elements_grid.addWidget(box, i // 2, i % 2)
+            self._element_boxes[symbol] = box
+
+    def selected_elements(self):
+        return [s for s, box in self._element_boxes.items() if box.isChecked()]
+
+    def show_elements_feedback(self, text, ok):
+        self._elements_feedback.show_feedback(text, ok)
+
+    def set_step(self, step):
+        first = step == 1
+        for box in self._element_boxes.values():
+            box.setEnabled(first)
+        self._elements_check.setEnabled(first)
+        self._step2.setEnabled(not first)
+        self._step2.setTitle("Шаг 2. Какой это сплав?" if not first
+                             else "Шаг 2. Какой это сплав? (откроется после шага 1)")

@@ -5,7 +5,7 @@
 """
 from dataclasses import dataclass
 
-from masslab.model.alloys import ALLOYS
+from masslab.model.alloys import ALLOY_ELEMENTS, ALLOYS
 from masslab.model.elements import ELEMENTS
 from masslab.model.physics import DRIFT_LENGTH, TOFPhysics
 from masslab.model.quiz import ChoiceQuestion
@@ -203,13 +203,24 @@ class ElementTask:
 # ---------------------------------------------------------------- Задание 3
 
 ALLOY_HINTS = (
-    "Наведите курсор на каждый крупный пик и запишите m/z. Включите логарифмическую "
-    "шкалу — так видны и слабые пики.",
+    "Наведите курсор на каждый крупный пик и запишите m/z. Пики H₂O⁺, N₂⁺, O₂⁺ — "
+    "остаточный газ, их не учитывайте.",
     "Сравните найденные m/z с изотопами во вкладке «Справочник элементов»: например, "
-    "у меди пики 63 и 65 (≈ 69 % и 31 %), у никеля — 58 и 60.",
-    "Соотношение высот пиков разных элементов показывает их долю в сплаве. Если "
-    "пики близких масс сливаются, подберите напряжение с лучшим разрешением.",
+    "у меди пики 63 и 65 (≈ 69 % и 31 %), у никеля — 58 и 60, у алюминия один пик 27.",
+    "На шаге 2 сравните высоты пиков разных элементов: чем больше элемента в сплаве, "
+    "тем выше его пики. Слабые пики лучше видны в логарифмической шкале.",
 )
+
+
+@dataclass(frozen=True)
+class ElementsCheck:
+    """Результат шага 1 задания 3."""
+    missing: tuple     # основные элементы, которые не отмечены
+    extra: tuple       # отмечены, но в сплаве их нет
+
+    @property
+    def passed(self):
+        return not self.missing and not self.extra
 
 
 class AlloyTask:
@@ -236,6 +247,18 @@ class AlloyTask:
 
     def peaks(self):
         return self.alloy.peaks()
+
+    @staticmethod
+    def element_choices():
+        return ALLOY_ELEMENTS
+
+    def check_elements(self, selected):
+        """Шаг 1: отмечены ли все основные элементы и нет ли лишних (добавки — по желанию)."""
+        selected = set(selected)
+        missing = tuple(s for s in self.alloy.major_symbols if s not in selected)
+        extra = tuple(s for s in ALLOY_ELEMENTS
+                      if s in selected and s not in self.alloy.symbols)
+        return ElementsCheck(missing, extra)
 
     def check(self, option_index):
         return self.options[option_index] is self.alloy
