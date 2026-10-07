@@ -24,6 +24,7 @@ class DemoPresenter:
         self._answers = []
         self._locked = []
         self._attempts = 0
+        self.reveal = False          # режим преподавателя: показывать верные ответы
         view.answer_selected.connect(self._on_answer)
         view.check_requested.connect(self._on_check)
 
@@ -42,7 +43,8 @@ class DemoPresenter:
 
     def _show_questions(self):
         self._view.show_questions([
-            QuestionItem(q.text, q.options, self._answers[i], self._locked[i])
+            QuestionItem(q.text, q.options, self._answers[i], self._locked[i],
+                         q.correct_index if self.reveal else None)
             for i, q in enumerate(self._task.questions)])
 
     def _on_answer(self, question_index, option_index):

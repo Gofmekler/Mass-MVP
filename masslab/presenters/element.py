@@ -18,7 +18,9 @@ class ElementPresenter:
         self._hints = HintTracker(view.show_hint, ELEMENT_HINTS)
         self._task = None
         self._attempts = 0
+        self.reveal = False          # режим преподавателя: показывать ответ
         view.check_requested.connect(self._on_check)
+        view.workspace.voltage_changed.connect(lambda _: self._show_answer())
 
     def start(self):
         self._task = ElementTask(self._rng)
@@ -31,8 +33,20 @@ class ElementPresenter:
 
     def _show_sample(self):
         self._view.clear_inputs()
-        self._view.set_options([f"{s} — {ELEMENTS[s].name}" for s in self._task.options])
-        self._ws.set_peaks(self._task.peaks())
+        task = self._task
+        correct = task.options.index(task.unknown.symbol) if self.reveal else None
+        self._view.set_options([f"{s} — {ELEMENTS[s].name}" for s in task.options], correct)
+        self._ws.set_peaks(task.peaks())
+        self._show_answer()
+
+    def _show_answer(self):
+        if not self.reveal or self._task is None:
+            self._view.show_answer(None)
+            return
+        e, tof = self._task.unknown, self._ws.tof
+        self._view.show_answer(
+            f"Ответ (режим преподавателя): t = {num(tof.flight_time(e.mass) * 1e6, 3)} мкс "
+            f"при U = {self._ws.voltage} В, m = {num(e.mass, 2)} а.е.м., {e.symbol} — {e.name}.")
 
     def _on_check(self):
         t_us = parse_number(self._view.time_text())

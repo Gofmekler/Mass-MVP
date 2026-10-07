@@ -3,7 +3,6 @@ import time
 from datetime import datetime
 
 from masslab.model.session import STAGE_TITLES, STAGES, LabSession
-from masslab.model.theory import THEORY_HTML
 from masslab.presenters.alloy import AlloyPresenter
 from masslab.presenters.demo import DemoPresenter
 from masslab.presenters.element import ElementPresenter
@@ -12,10 +11,8 @@ from masslab.presenters.login import LoginPresenter
 from masslab.presenters.quiz import QuizPresenter
 from masslab.presenters.report import ReportPresenter
 from masslab.presenters.sandbox import SandboxPresenter
+from masslab.presenters.theory import TheoryPresenter
 from masslab.presenters.tour import TourPresenter
-from masslab.presenters.workspace import PALETTE
-from masslab.model.physics import TOFPhysics
-from masslab.views.viewmodels import SchemeData, SchemeIon
 
 STAGE_CHIPS = ("Тест", "Задание 1", "Задание 2", "Задание 3", "Итог")
 CLOSE_DURING_LAB = ("Лабораторная работа не завершена.\n"
@@ -23,15 +20,6 @@ CLOSE_DURING_LAB = ("Лабораторная работа не завершен
 CLOSE_ON_REPORT = ("Итоговый результат будет закрыт и нигде не сохранится.\n"
                    "Если нужен отчёт, сначала сохраните его в PDF. Закрыть программу?")
 NEXT_STAGE = {"quiz": "task1", "task1": "task2", "task2": "task3", "task3": None}
-# Ионы для анимации на схеме в методичке
-THEORY_IONS = (("H⁺", 1.008), ("N⁺", 14.007), ("Ar⁺", 39.948), ("Xe⁺", 131.29))
-
-
-def theory_scheme():
-    tof = TOFPhysics()
-    ions = tuple(SchemeIon(label, PALETTE[i], tof.flight_time(m) * 1e6)
-                 for i, (label, m) in enumerate(THEORY_IONS))
-    return SchemeData(ions, int(tof.voltage), tof.length)
 
 
 class AppPresenter:
@@ -41,7 +29,8 @@ class AppPresenter:
         self._now = now
         self._session = None
         self._page = None
-        self._login = LoginPresenter(view.login, self._on_login, self._on_sandbox)
+        self._login = LoginPresenter(view.login, self._on_login, self._on_sandbox,
+                                     self._on_teacher_demo)
         self._stages = {
             "quiz": QuizPresenter(view.quiz, rng, lambda n, r: self._on_stage_done("quiz", n, r)),
             "task1": DemoPresenter(view.demo, rng, np_rng,
@@ -55,6 +44,7 @@ class AppPresenter:
                                        write_pdf)
         self._sandbox = SandboxPresenter(view.sandbox, np_rng, self.start)
         self._tour = TourPresenter(view)
+        self._theory = TheoryPresenter(view.theory, np_rng)
         view.tick.connect(self._on_tick)
         view.theory_requested.connect(self._on_theory)
         view.help_requested.connect(self._on_help)
@@ -65,6 +55,7 @@ class AppPresenter:
 
     def start(self):
         self._session = None
+        self._set_reveal(False)
         self._tour.reset()
         self._view.set_close_confirmation(None)
         self._view.set_timer("")
@@ -79,6 +70,16 @@ class AppPresenter:
     def _on_login(self, name, group):
         self._session = LabSession(name, group, self._clock)
         self._view.set_close_confirmation(CLOSE_DURING_LAB)
+        self._enter("quiz")
+
+    def _set_reveal(self, enabled):
+        for presenter in self._stages.values():
+            presenter.reveal = enabled
+
+    def _on_teacher_demo(self, name, group):
+        self._session = LabSession(name, group, self._clock, teacher=True)
+        self._set_reveal(True)
+        self._view.set_close_confirmation(None)
         self._enter("quiz")
 
     def _on_sandbox(self):
@@ -124,7 +125,7 @@ class AppPresenter:
         self._view.close_app()
 
     def _on_theory(self):
-        self._view.show_theory(THEORY_HTML, theory_scheme())
+        self._theory.open()
 
     def _on_help(self):
         if self._tour.has_tour(self._page):
@@ -140,6 +141,8 @@ class AppPresenter:
         if s is None:
             return
         total = f"Всего {duration(s.total_duration())}"
+        if s.teacher:
+            total = "Режим преподавателя  ·  " + total
         if s.current is None:
             self._view.set_timer(total)
         else:
