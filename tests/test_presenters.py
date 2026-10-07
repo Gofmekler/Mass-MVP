@@ -186,13 +186,17 @@ def test_workspace_log_scale_keeps_values_positive():
     assert plot.y_log and min(plot.curves[0].y) > 0
 
 
-def test_unknown_peak_has_no_marker():
+def test_unknown_peak_marked_red_question():
     from masslab.model.spectrum import Peak
+    from masslab.presenters.workspace import UNKNOWN_COLOR
     view = workspace()
     ws = WorkspacePresenter(view, np_rng())
     ws.set_peaks([Peak(4.0, 1.0, "He"), Peak(23.0, 1.0, "?")])
-    labels = [m.label for m in view.last("show_spectrum")[0].markers]
-    assert "He" in labels and "?" not in labels
+    markers = view.last("show_spectrum")[0].markers
+    labels = [m.label for m in markers]
+    assert "He" in labels
+    unknown = [m for m in markers if m.label == "?"]
+    assert len(unknown) == 1 and unknown[0].color == UNKNOWN_COLOR
     assert {"H₂O⁺", "N₂⁺", "O₂⁺"} <= set(labels)       # остаточный газ подписан
 
 

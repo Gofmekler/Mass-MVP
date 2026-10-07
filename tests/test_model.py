@@ -252,6 +252,13 @@ def test_element_pool_separated_from_calibrants():
             assert abs(ELEMENTS[s].mass - ELEMENTS[c].mass) / ELEMENTS[c].mass > 0.05
 
 
+def test_element_pool_separated_from_residual_gas():
+    """Пик неизвестного иона не должен прятаться под подписанным пиком газа."""
+    for s in ELEMENT_POOL:
+        for gas in residual_gas_peaks():
+            assert abs(ELEMENTS[s].mass - gas.mass) / gas.mass > 0.02, (s, gas.label)
+
+
 def test_element_task_has_unlabelled_unknown_peak():
     task = ElementTask(random.Random(7))
     labels = [p.label for p in task.peaks()]

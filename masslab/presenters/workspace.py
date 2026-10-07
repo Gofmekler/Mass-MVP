@@ -180,6 +180,8 @@ class WorkspacePresenter:
             x = tof.flight_time(p.mass, p.charge) * 1e6
             if p.background:
                 markers.append(Marker(x, p.label, GAS_COLOR))
+            elif p.label == "?":
+                markers.append(Marker(x, "?", UNKNOWN_COLOR))   # время студент измеряет сам
             elif p.label in colors:
                 markers.append(Marker(x, p.label, colors[p.label]))
         curve = Curve(tuple(t * 1e6), tuple(y), "#E0E0E0", width=1.0, animate=False)
