@@ -173,7 +173,7 @@ class DemoView(_LauncherMixin, _TaskView):
                 self._questions_layout.addWidget(w)
                 self._question_widgets.append(w)
         for i, (w, q) in enumerate(zip(self._question_widgets, questions)):
-            w.set_question(f"{i + 1}. {q.text}", q.options, q.selected, q.locked)
+            w.set_question(f"{i + 1}. {q.text}", q.options, q.selected, q.locked, q.correct)
 
     def show_hint(self, text):
         self._hint.show_hint(text)
@@ -221,14 +221,18 @@ class _ChoiceTaskView(_TaskView):
         self._check.clicked.connect(self.check_requested.emit)
         self._feedback = FeedbackLabel()
         self._hint = HintBox()
+        self._answer = HintBox(style=HintBox.GREEN)
 
     def tour_targets(self):
         targets = super().tour_targets()
         targets.update({"options": self._choice, "check": self._check})
         return targets
 
-    def set_options(self, labels):
-        self._choice.set_question(self._question_text, labels)
+    def set_options(self, labels, correct=None):
+        self._choice.set_question(self._question_text, labels, correct=correct)
+
+    def show_answer(self, text):
+        self._answer.show_hint(text)
 
     def selected_option(self):
         return self._choice.selected_index()
@@ -267,7 +271,7 @@ class ElementView(_ChoiceTaskView):
         form.addWidget(self._mass)
         form.addSpacing(6)
         form.addWidget(self._choice)
-        self._finish_panel(group, self._check, self._feedback, self._hint)
+        self._finish_panel(self._answer, group, self._check, self._feedback, self._hint)
 
     def tour_targets(self):
         targets = super().tour_targets()
@@ -300,4 +304,4 @@ class AlloyView(_ChoiceTaskView):
             "Какой это сплав?")
         group = QtWidgets.QGroupBox("Ответ")
         QtWidgets.QVBoxLayout(group).addWidget(self._choice)
-        self._finish_panel(group, self._check, self._feedback, self._hint)
+        self._finish_panel(self._answer, group, self._check, self._feedback, self._hint)

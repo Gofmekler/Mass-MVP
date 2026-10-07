@@ -1,6 +1,6 @@
 """Страницы входа, теста и итогового результата."""
 from masslab.events import Event
-from masslab.views.qt.qt import QtCore, QtGui, QtWidgets
+from masslab.views.qt.qt import QtCore, QtGui, QtWidgets, exec_app
 from masslab.views.qt.style import ACCENT, ERROR, feedback_style
 from masslab.views.qt.widgets import QuestionWidget, ReferenceTable, label, scrollable
 
@@ -36,6 +36,8 @@ class LoginView(QtWidgets.QWidget):
         super().__init__(parent)
         self.start_requested = Event()
         self.secret_entered = Event()
+        self.teacher_demo_requested = Event()
+        self.sandbox_requested = Event()
         outer, layout = _card(640)
         title = label("Лабораторная работа\nВремяпролётный масс-спектрометр")
         title.setAlignment(QtCore.Qt.AlignCenter)
@@ -78,6 +80,21 @@ class LoginView(QtWidgets.QWidget):
         layout.addWidget(start)
         layout.addSpacing(6)
         layout.addWidget(note)
+
+        self._teacher = QtWidgets.QGroupBox("Режим преподавателя")
+        teacher_layout = QtWidgets.QVBoxLayout(self._teacher)
+        teacher_layout.addWidget(label(
+            "Работа с ответами: все этапы как у студента, но верные ответы подсвечены "
+            "зелёным. Песочница: прибор со всеми настройками без теста и заданий.",
+            "muted", wrap=True))
+        demo = _button("Пройти работу с правильными ответами", primary=True)
+        demo.clicked.connect(self.teacher_demo_requested.emit)
+        sandbox = _button("Свободная работа с прибором (песочница)")
+        sandbox.clicked.connect(self.sandbox_requested.emit)
+        teacher_layout.addWidget(demo)
+        teacher_layout.addWidget(sandbox)
+        self._teacher.hide()
+        layout.addWidget(self._teacher)
         layout.addStretch(1)
 
         # Скрытое поле без подписи: пароль открывает режим песочницы
@@ -107,6 +124,9 @@ class LoginView(QtWidgets.QWidget):
 
     def clear_secret(self):
         self._secret.clear()
+
+    def show_teacher_panel(self, visible):
+        self._teacher.setVisible(visible)
 
     def reset(self):
         self._name.clear()
@@ -175,10 +195,10 @@ class QuizView(QtWidgets.QWidget):
 
         QtWidgets.QVBoxLayout(self).addWidget(self._stack)
 
-    def show_question(self, number, total, text, options, selected):
+    def show_question(self, number, total, text, options, selected, correct=None):
         self._stack.setCurrentIndex(0)
         self._number.setText(f"Вопрос {number} из {total}")
-        self._question.set_question(text, options, selected)
+        self._question.set_question(text, options, selected, correct=correct)
 
     def set_navigation(self, can_prev, can_next, can_finish):
         self._prev.setEnabled(can_prev)
@@ -323,9 +343,20 @@ class ReportView(QtWidgets.QWidget):
 
     def ask_save_path(self, default_name):
         folder = QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.DesktopLocation)
-        path, _ = QtWidgets.QFileDialog.getSaveFileName(
-            self, "Сохранить отчёт", f"{folder}/{default_name}", "PDF (*.pdf)")
-        return path or None
+        dialog = QtWidgets.QFileDialog(self, "Сохранить отчёт", f"{folder}/{default_name}",
+                                       "Документ PDF (*.pdf)")
+        # Встроенный диалог Qt — переведён на русский на любой системе
+        dialog.setOption(QtWidgets.QFileDialog.DontUseNativeDialog, True)
+        dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptSave)
+        dialog.setDefaultSuffix("pdf")
+        dialog.setLabelText(QtWidgets.QFileDialog.Accept, "Сохранить")
+        dialog.setLabelText(QtWidgets.QFileDialog.Reject, "Отмена")
+        dialog.setLabelText(QtWidgets.QFileDialog.FileName, "Имя файла:")
+        dialog.setLabelText(QtWidgets.QFileDialog.FileType, "Тип файла:")
+        dialog.setLabelText(QtWidgets.QFileDialog.LookIn, "Папка:")
+        accepted = exec_app(dialog)
+        files = dialog.selectedFiles()
+        return files[0] if accepted and files else None
 
     def show_export_result(self, text, ok):
         self._export_status.setText(text)
