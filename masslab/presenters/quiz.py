@@ -15,6 +15,7 @@ class QuizPresenter:
         self._index = 0
         self._attempts = 0
         self._passed = False
+        self.reveal = False          # режим преподавателя: показывать верные ответы
         view.answer_selected.connect(self._on_answer)
         view.next_requested.connect(lambda: self._go(self._index + 1))
         view.prev_requested.connect(lambda: self._go(self._index - 1))
@@ -36,7 +37,8 @@ class QuizPresenter:
     def _show(self):
         q = self._quiz.questions[self._index]
         self._view.show_question(self._index + 1, self._quiz.size, q.text, q.options,
-                                 self._quiz.answers[self._index])
+                                 self._quiz.answers[self._index],
+                                 q.correct_index if self.reveal else None)
         self._update_controls()
 
     def _update_controls(self):

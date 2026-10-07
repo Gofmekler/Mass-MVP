@@ -30,9 +30,10 @@ class StageRecord:
 
 
 class LabSession:
-    def __init__(self, student, group, clock=time.monotonic):
+    def __init__(self, student, group, clock=time.monotonic, teacher=False):
         self.student = student
         self.group = group
+        self.teacher = teacher     # режим преподавателя (с подсказками ответов)
         self._clock = clock
         self.started_at = clock()
         self.finished_at = None

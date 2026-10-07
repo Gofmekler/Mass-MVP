@@ -19,6 +19,7 @@ class AlloyPresenter:
         self._hints = HintTracker(view.show_hint, ALLOY_HINTS)
         self._task = None
         self._attempts = 0
+        self.reveal = False          # режим преподавателя: показывать ответ
         view.check_requested.connect(self._on_check)
 
     def start(self):
@@ -31,8 +32,14 @@ class AlloyPresenter:
         self._hints.reset()
 
     def _show_sample(self):
-        self._view.set_options([f"{a.name}: {a.composition_text()}" for a in self._task.options])
-        self._ws.set_peaks(self._task.peaks())
+        task = self._task
+        correct = task.options.index(task.alloy) if self.reveal else None
+        self._view.set_options([f"{a.name}: {a.composition_text()}" for a in task.options],
+                               correct)
+        self._ws.set_peaks(task.peaks())
+        self._view.show_answer(
+            f"Ответ (режим преподавателя): {task.alloy.name} — {task.alloy.composition_text()}."
+            if self.reveal else None)
 
     def _on_check(self):
         option = self._view.selected_option()

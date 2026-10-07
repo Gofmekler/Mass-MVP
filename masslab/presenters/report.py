@@ -31,7 +31,8 @@ class ReportPresenter:
             finished_at=finished_at.strftime("%d.%m.%Y %H:%M"),
             rows=rows,
             total=duration(session.total_duration()),
-            verdict="ЗАЧТЕНО" if session.completed else "НЕ ЗАВЕРШЕНО",
+            verdict=("ДЕМОНСТРАЦИЯ" if session.teacher
+                     else "ЗАЧТЕНО" if session.completed else "НЕ ЗАВЕРШЕНО"),
             stages=tuple(session.reports[s] for s in STAGES if s in session.reports),
         )
         self._view.show_report(self._report)
