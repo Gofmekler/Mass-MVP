@@ -13,9 +13,10 @@ from masslab.presenters.login import LoginPresenter
 from masslab.presenters.quiz import QuizPresenter
 from masslab.presenters.report import ReportPresenter
 from masslab.presenters.sandbox import SandboxPresenter
+from masslab.presenters.theory import TheoryPresenter
 from masslab.presenters.tour import TOUR_STEPS, TourPresenter
 from masslab.presenters.workspace import WorkspacePresenter
-from tests.fakes import (LAUNCHER_EVENTS, TEST_PASSWORD, FakeClock, FakeMainView, FakeView, task_view,
+from tests.fakes import (LAUNCHER_EVENTS, LOGIN_EVENTS, TEST_PASSWORD, FakeClock, FakeMainView, FakeView, task_view,
                          workspace)
 
 
@@ -43,9 +44,8 @@ def test_duration_and_attempts():
 @pytest.mark.parametrize("name, group", [("", "ФИЗ-101"), ("Иванов", "  "), ("x" * 61, "1")])
 def test_login_rejects_invalid_input(name, group):
     logged = []
-    view = FakeView(["start_requested", "secret_entered"], student_name=name,
-                    student_group=group)
-    LoginPresenter(view, lambda *a: logged.append(a), lambda: None)
+    view = FakeView(LOGIN_EVENTS, student_name=name, student_group=group)
+    LoginPresenter(view, lambda *a: logged.append(a), lambda: None, lambda *a: None)
     view.start_requested.emit()
     assert logged == []
     assert view.called("show_error")
@@ -53,21 +53,24 @@ def test_login_rejects_invalid_input(name, group):
 
 def test_login_normalizes_spaces():
     logged = []
-    view = FakeView(["start_requested", "secret_entered"], student_name="  Иванов   Иван ",
-                    student_group="ФИЗ-101")
-    LoginPresenter(view, lambda *a: logged.append(a), lambda: None)
+    view = FakeView(LOGIN_EVENTS, student_name="  Иванов   Иван ", student_group="ФИЗ-101")
+    LoginPresenter(view, lambda *a: logged.append(a), lambda: None, lambda *a: None)
     view.start_requested.emit()
     assert logged == [("Иванов Иван", "ФИЗ-101")]
 
 
-def test_secret_field_opens_sandbox_only_with_password():
-    opened = []
-    view = FakeView(["start_requested", "secret_entered"])
-    LoginPresenter(view, lambda *a: None, lambda: opened.append(True))
+def test_secret_field_opens_teacher_panel_only_with_password():
+    opened, demo = [], []
+    view = FakeView(LOGIN_EVENTS, student_name="", student_group="")
+    LoginPresenter(view, lambda *a: None, lambda: opened.append(True), lambda *a: demo.append(a))
     view.secret_entered.emit("неверно")
-    assert opened == [] and view.called("clear_secret")
+    assert not view.called("show_teacher_panel") and view.called("clear_secret")
     view.secret_entered.emit(TEST_PASSWORD)
+    assert view.last("show_teacher_panel") == (True,)
+    view.sandbox_requested.emit()
+    view.teacher_demo_requested.emit()
     assert opened == [True]
+    assert demo == [("Преподаватель", "демонстрация")]
 
 
 # --- тест -------------------------------------------------------------
@@ -408,8 +411,8 @@ def test_help_and_theory_buttons():
     app = AppPresenter(view, random.Random(7), np_rng(), lambda p, r: None)
     app.start()
     view.theory_requested.emit()
-    html, scheme = view.last("show_theory")
-    assert "Времяпролётный" in html and len(scheme.ions) == 4
+    assert view.theory.called("open")
+    assert view.theory.last("show_section")[0] == 0
     view.help_requested.emit()                 # на странице входа тура нет
     assert view.called("show_message") and not view.called("show_tour_step")
 
@@ -419,6 +422,7 @@ def test_sandbox_from_login_and_back():
     app = AppPresenter(view, random.Random(8), np_rng(), lambda p, r: None)
     app.start()
     view.login.secret_entered.emit(TEST_PASSWORD)
+    view.login.sandbox_requested.emit()
     assert view.last("show_page") == ("sandbox",)
     view.sandbox.launch_requested.emit()
     rows = view.sandbox.last("show_flight_table")[0]
@@ -457,3 +461,67 @@ def test_report_export_failure_is_reported():
     view.export_requested.emit()
     text, ok = view.last("show_export_result")
     assert ok is False and "нет доступа" in text
+
+
+def test_teacher_demo_reveals_answers_everywhere():
+    view = FakeMainView()
+    app = AppPresenter(view, random.Random(9), np_rng(), lambda p, r: None)
+    app.start()
+    view.login.teacher_demo_requested.emit()
+    assert app.session.teacher
+    quiz = app._stages["quiz"]._quiz
+    assert view.quiz.last("show_question")[5] == quiz.questions[0].correct_index
+    app._stages["quiz"]._on_completed(1, None)
+    view.tour_skip.emit()
+    items = view.demo.last("show_questions")[0]
+    task = app._stages["task1"]._task
+    assert [it.correct for it in items] == [q.correct_index for q in task.questions]
+    app._stages["task1"]._on_completed(1, None)
+    element = app._stages["task2"]._task
+    labels, correct = view.element.last("set_options")
+    assert labels[correct].startswith(element.unknown.symbol)
+    assert element.unknown.symbol in view.element.last("show_answer")[0]
+    view.element.workspace.voltage_changed.emit(6000)
+    assert "6000 В" in view.element.last("show_answer")[0]
+    app._stages["task2"]._on_completed(1, None)
+    alloy = app._stages["task3"]._task
+    assert view.alloy.last("set_options")[1] == alloy.options.index(alloy.alloy)
+    app._stages["task3"]._on_completed(1, None)
+    assert view.report.last("show_report")[0].verdict == "ДЕМОНСТРАЦИЯ"
+
+    app.start()                                   # обычная сессия — ответы скрыты
+    view.login.start_requested.emit()
+    assert view.quiz.last("show_question")[5] is None
+
+
+def test_theory_navigation_and_visuals():
+    from masslab.model.theory import THEORY_SECTIONS
+    view = FakeView(["section_selected", "next_requested", "prev_requested",
+                     "resolution_voltage_changed"])
+    presenter = TheoryPresenter(view, np_rng())
+    assert len(view.last("set_sections")[0]) == len(THEORY_SECTIONS)
+    presenter.open()
+    assert view.last("set_navigation") == (False, True)
+    kinds = []
+    for i in range(len(THEORY_SECTIONS)):
+        view.section_selected.emit(i)
+        index, total, title, points, formula, caption, visual = view.last("show_section")
+        assert index == i and title == THEORY_SECTIONS[i].title and "<li>" in points
+        kinds.append(visual.kind)
+    assert view.last("set_navigation") == (True, False)
+    assert kinds == [s.visual for s in THEORY_SECTIONS]
+    view.prev_requested.emit()
+    assert view.last("show_section")[0] == len(THEORY_SECTIONS) - 2
+
+
+@pytest.mark.parametrize("voltage, resolved", [(1000, False), (3500, True), (20000, False)])
+def test_theory_resolution_demo(voltage, resolved):
+    from masslab.model.theory import THEORY_SECTIONS
+    view = FakeView(["section_selected", "next_requested", "prev_requested",
+                     "resolution_voltage_changed"])
+    TheoryPresenter(view, np_rng())
+    view.section_selected.emit([s.visual for s in THEORY_SECTIONS].index("resolution"))
+    view.resolution_voltage_changed.emit(voltage)
+    plot, text = view.last("show_resolution")
+    assert f"{voltage} В" in text and ("разделены" in text) is resolved
+    assert min(plot.curves[0].x) >= 202 and max(plot.curves[0].x) <= 210
