@@ -44,6 +44,7 @@ def _members(protocol):
 
 @pytest.mark.parametrize("attr, protocol", [
     (None, interfaces.IMainView),
+    ("theory", interfaces.ITheoryView),
     ("login", interfaces.ILoginView),
     ("quiz", interfaces.IQuizView),
     ("demo", interfaces.IDemoView),
@@ -85,8 +86,11 @@ def test_app_runs_through_all_pages(window):
                        lambda path, report: written.append(path))
     app.start()
     window.theory_requested.emit()
-    assert window._theory.isVisible()
-    window._theory.close()
+    assert window.theory.isVisible()
+    for i in range(window.theory._list.count()):        # все разделы с иллюстрациями
+        window.theory._list.setCurrentRow(i)
+        _process(30)
+    window.theory.close()
 
     window.login._name.setText("Тестов Тест")
     window.login._group.setText("ФИЗ-301")
@@ -122,6 +126,8 @@ def test_sandbox_page(window):
     app = AppPresenter(window, random.Random(1), np.random.default_rng(1), lambda p, r: None)
     app.start()
     window.login.secret_entered.emit(TEST_PASSWORD)
+    assert window.login._teacher.isVisibleTo(window.login)
+    window.login.sandbox_requested.emit()
     assert window._stack.currentWidget() is window.sandbox
     window.sandbox.launch_requested.emit()
     assert window.sandbox._table.rowCount() == 3
