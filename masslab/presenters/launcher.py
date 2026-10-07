@@ -5,7 +5,6 @@ from masslab.model.tasks import ion_label
 from masslab.presenters.formatting import num
 
 DEFAULT_SELECTION = ("H", "N", "Ar")
-MAX_ELEMENTS = 8
 DOUBLE_CHARGE_SHARE = 0.15     # доля двухзарядных ионов
 TABLE_HEADERS = ("Ион", "m/z", "v, км/с", "t, мкс", "R")
 
@@ -32,11 +31,7 @@ class IonLauncher:
     def launch(self):
         symbols = self._view.selected_elements()
         if not symbols:
-            self._view.show_feedback("Выберите хотя бы один элемент для запуска.", False)
-            return
-        if len(symbols) > MAX_ELEMENTS:
-            self._view.show_feedback(
-                f"Можно запустить не более {MAX_ELEMENTS} элементов одновременно.", False)
+            self._view.show_launch_feedback("Выберите хотя бы один элемент для запуска.", False)
             return
         peaks = [Peak(ELEMENTS[s].mass, 1.0, ion_label(s)) for s in symbols]
         if self._view.double_charge_enabled():
@@ -45,7 +40,7 @@ class IonLauncher:
         self.launched = peaks
         self._ws.set_peaks(peaks)
         self.update_table()
-        self._view.show_feedback("", None)
+        self._view.show_launch_feedback("", None)
 
     def _on_double_charge(self, _enabled):
         if self.launched:

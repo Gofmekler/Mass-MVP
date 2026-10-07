@@ -241,7 +241,15 @@ def test_demo_double_charge_adds_ions():
 def test_demo_launch_requires_selection():
     presenter, view, _ = _demo(selected=())
     view.launch_requested.emit()
-    assert view.last("show_feedback")[1] is False
+    assert view.last("show_launch_feedback")[1] is False
+
+
+def test_demo_can_launch_all_elements():
+    from masslab.model.elements import ELEMENTS
+    presenter, view, _ = _demo(selected=tuple(ELEMENTS), double=True)
+    view.launch_requested.emit()
+    assert len(view.last("show_flight_table")[0]) == 2 * len(ELEMENTS)
+    assert view.last("show_launch_feedback") == ("", None)
 
 
 def test_demo_wrong_answers_replaced_correct_ones_locked():

@@ -8,6 +8,7 @@ from matplotlib.figure import Figure
 from masslab.views.qt.style import PLOT_BG, TEXT
 
 ANIMATION_FRAMES = 40
+MAX_LEGEND_ITEMS = 11      # больше — легенда закрывает график, подписи есть на спектре
 ANIMATION_INTERVAL_MS = 30
 
 
@@ -22,6 +23,28 @@ def _clip(x, y, cut):
         xs = np.append(xs, cut)
         ys = np.append(ys, y[n - 1] + f * (y[n] - y[n - 1]))
     return xs, ys
+
+
+LABEL_LEVELS = 4           # ярусов подписей пиков
+LABEL_GAP = 0.05           # ближе этой доли ширины — подпись уходит на следующий ярус
+
+
+def _label_levels(markers, x_lim):
+    """Раскладывает подписи близких пиков по ярусам, чтобы они не налезали друг на друга."""
+    if not markers:
+        return []
+    ordered = sorted(markers, key=lambda m: m.x)
+    lo, hi = x_lim if x_lim else (ordered[0].x, ordered[-1].x)
+    span = (hi - lo) or 1.0
+    last_x = [None] * LABEL_LEVELS
+    result = []
+    for m in ordered:
+        level = next((k for k in range(LABEL_LEVELS)
+                      if last_x[k] is None or (m.x - last_x[k]) / span > LABEL_GAP),
+                     len(result) % LABEL_LEVELS)
+        last_x[level] = m.x
+        result.append((m, level))
+    return result
 
 
 class PlotWidget(QtWidgets.QWidget):
@@ -82,11 +105,11 @@ class PlotWidget(QtWidgets.QWidget):
             if animate and c.animate:
                 (dot,) = ax.plot([], [], "o", color=c.color, markersize=5, alpha=c.alpha)
                 self._animated.append((line, dot, x, y))
-        for m in plot.markers:
+        for m, level in _label_levels(plot.markers, plot.x_lim):
             ax.axvline(m.x, color=m.color, linestyle=":", linewidth=1.0, alpha=0.9)
             ax.annotate(m.label, xy=(m.x, 1.0), xycoords=("data", "axes fraction"),
-                        xytext=(3, -14), textcoords="offset points", color=m.color,
-                        fontsize=10, fontweight="bold")
+                        xytext=(3, -14 - 13 * level), textcoords="offset points",
+                        color=m.color, fontsize=10, fontweight="bold")
         ax.set_title(plot.title, color=TEXT, fontsize=10)
         ax.set_xlabel(plot.x_label, color=TEXT, fontsize=9)
         ax.set_ylabel(plot.y_label, color=TEXT, fontsize=9)
@@ -94,7 +117,8 @@ class PlotWidget(QtWidgets.QWidget):
             ax.set_xlim(*plot.x_lim)
         if plot.y_lim:
             ax.set_ylim(*plot.y_lim)
-        if any(c.label for c in plot.curves):
+        labelled = sum(1 for c in plot.curves if c.label)
+        if 0 < labelled <= MAX_LEGEND_ITEMS:
             legend = ax.legend(loc="lower right", fontsize=8, facecolor="#2A2A2A",
                                edgecolor="#555", labelcolor=TEXT)
             legend.set_draggable(True)

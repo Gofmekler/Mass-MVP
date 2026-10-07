@@ -82,6 +82,8 @@ class _LauncherMixin:
         ions_layout.addWidget(self._list)
         ions_layout.addWidget(self._double)
         ions_layout.addWidget(self._launch)
+        self._launch_feedback = FeedbackLabel()       # сразу под кнопкой — чтобы было видно
+        ions_layout.addWidget(self._launch_feedback)
 
         self._results_box = QtWidgets.QGroupBox("Результаты запуска")
         self._table = ReferenceTable(["Ион", "m/z", "v, км/с", "t, мкс", "R"])
@@ -122,6 +124,9 @@ class _LauncherMixin:
         self._double.blockSignals(True)
         self._double.setChecked(enabled)
         self._double.blockSignals(False)
+
+    def show_launch_feedback(self, text, ok):
+        self._launch_feedback.show_feedback(text, ok)
 
     def show_flight_table(self, rows):
         self._table.set_rows(rows)
