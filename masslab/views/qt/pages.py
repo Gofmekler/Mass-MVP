@@ -1,7 +1,7 @@
 """Страницы входа, теста и итогового результата."""
 from masslab.events import Event
 from masslab.views.qt.qt import QtCore, QtGui, QtWidgets, exec_app
-from masslab.views.qt.style import ACCENT, ERROR, feedback_style
+from masslab.views.qt.style import color, feedback_style, themed
 from masslab.views.qt.widgets import QuestionWidget, ReferenceTable, label, scrollable
 
 try:
@@ -41,7 +41,7 @@ class LoginView(QtWidgets.QWidget):
         outer, layout = _card(640)
         title = label("Лабораторная работа\nВремяпролётный масс-спектрометр")
         title.setAlignment(QtCore.Qt.AlignCenter)
-        title.setStyleSheet(f"font-size: 22px; font-weight: bold; color: {ACCENT};")
+        themed(title, lambda: f"font-size: 22px; font-weight: bold; color: {color('accent')};")
         intro = label("", wrap=True)
         intro.setTextFormat(QtCore.Qt.RichText)
         intro.setText(
@@ -59,7 +59,7 @@ class LoginView(QtWidgets.QWidget):
         self._group = QtWidgets.QLineEdit()
         self._group.setPlaceholderText("например, ФИЗ-301")
         self._error = label("", wrap=True)
-        self._error.setStyleSheet(f"color: {ERROR}; font-weight: bold;")
+        themed(self._error, lambda: f"color: {color('error')}; font-weight: bold;")
         start = _button("Начать работу", primary=True)
         start.clicked.connect(self.start_requested.emit)
         for field in (self._name, self._group):
@@ -102,7 +102,8 @@ class LoginView(QtWidgets.QWidget):
         self._secret.setEchoMode(QtWidgets.QLineEdit.Password)
         self._secret.setFixedWidth(90)
         self._secret.setFrame(False)
-        self._secret.setStyleSheet("background: transparent; border: none; color: #2A2A2A;")
+        themed(self._secret, lambda: "background: transparent; border: none; "
+                                     f"color: {color('panel')};")
         self._secret.returnPressed.connect(
             lambda: self.secret_entered.emit(self._secret.text()))
         corner = QtWidgets.QHBoxLayout()
@@ -213,8 +214,8 @@ class QuizView(QtWidgets.QWidget):
     def show_result(self, title, text, details, passed, action_text):
         self._stack.setCurrentIndex(1)
         self._result_title.setText(title)
-        self._result_title.setStyleSheet(
-            f"font-size: 20px; font-weight: bold; color: {ACCENT if passed else ERROR};")
+        themed(self._result_title, lambda: "font-size: 20px; font-weight: bold; "
+                                           f"color: {color('accent' if passed else 'error')};")
         self._result_text.setText(text)
         if details:
             head, *items = details
@@ -280,9 +281,9 @@ class ReportView(QtWidgets.QWidget):
         self._total.setStyleSheet("font-size: 15px; font-weight: bold;")
         self._verdict = label("")
         self._verdict.setAlignment(QtCore.Qt.AlignCenter)
-        self._verdict.setStyleSheet(
-            f"font-size: 30px; font-weight: bold; color: {ACCENT}; "
-            f"border: 3px solid {ACCENT}; border-radius: 10px; padding: 8px;")
+        themed(self._verdict, lambda: (
+            f"font-size: 30px; font-weight: bold; color: {color('accent')}; "
+            f"border: 3px solid {color('accent')}; border-radius: 10px; padding: 8px;"))
         export = _button("Сохранить отчёт в PDF", primary=True)
         export.clicked.connect(self.export_requested.emit)
         self._export_status = label("", wrap=True)
@@ -360,4 +361,4 @@ class ReportView(QtWidgets.QWidget):
 
     def show_export_result(self, text, ok):
         self._export_status.setText(text)
-        self._export_status.setStyleSheet(feedback_style(ok))
+        themed(self._export_status, lambda: feedback_style(ok))

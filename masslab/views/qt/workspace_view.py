@@ -1,6 +1,7 @@
 from masslab.events import Event
 from masslab.views.qt.plot_widget import PlotWidget
 from masslab.views.qt.qt import QtCore, QtWidgets
+from masslab.views.qt.style import color, themed
 from masslab.views.qt.scheme_widget import SchemeWidget
 from masslab.views.qt.widgets import label
 from masslab.views.viewmodels import SchemeData
@@ -38,7 +39,8 @@ class WorkspaceView(QtWidgets.QWidget):
         self._log = QtWidgets.QCheckBox("Логарифмическая шкала")
         self._params = label("", "muted")
         self._readout = QtWidgets.QLabel()
-        self._readout.setStyleSheet("color: #FFEB3B; font-size: 13px; padding: 2px 4px;")
+        themed(self._readout,
+               lambda: f"color: {color('highlight')}; font-size: 13px; padding: 2px 4px;")
         self._spectrum = PlotWidget()
         self._trajectories = PlotWidget()
         self._scheme = SchemeWidget()

@@ -1,6 +1,6 @@
 """Общие пассивные виджеты."""
 from masslab.views.qt.qt import QtCore, QtWidgets, Signal
-from masslab.views.qt.style import feedback_style
+from masslab.views.qt.style import color, feedback_style, hint_style, themed
 
 
 class _OptionLabel(QtWidgets.QLabel):
@@ -36,18 +36,16 @@ class QuestionWidget(QtWidgets.QWidget):
         self._rows = []
         self._label_style()
 
-    def _label_style(self, color=None):
+    def _label_style(self, color_key=None):
         style = "font-weight: bold;"
         if self._font_size:
             style += f" font-size: {self._font_size}px;"
-        if color:
-            style += f" color: {color};"
-        self._label.setStyleSheet(style)
+        themed(self._label, lambda: style + (f" color: {color('ok')};" if color_key else ""))
 
     def set_question(self, text, options, selected=None, locked=False, correct=None):
         self._label.setText(("✓ " if locked else "") + text)
         self._label.setVisible(bool(text))
-        self._label_style("#81C784" if locked else None)
+        self._label_style("ok" if locked else None)
         for button in self._buttons:
             self._group.removeButton(button)
         for row in self._rows:
@@ -63,9 +61,8 @@ class QuestionWidget(QtWidgets.QWidget):
             is_correct = i == correct
             label = _OptionLabel(option + ("   ✓ верный ответ" if is_correct else ""), button)
             style = f"font-size: {self._font_size - 2}px;" if self._font_size else ""
-            if is_correct:
-                style += " color: #81C784; font-weight: bold;"
-            label.setStyleSheet(style)
+            themed(label, lambda style=style, ok=is_correct:
+                   style + (f" color: {color('ok')}; font-weight: bold;" if ok else ""))
             row_layout.addWidget(button, 0, QtCore.Qt.AlignTop)
             row_layout.addWidget(label, 1)
             self._group.addButton(button, i)
@@ -113,21 +110,19 @@ class FeedbackLabel(QtWidgets.QLabel):
     def show_feedback(self, text, ok):
         self.setText(text)
         self.setVisible(bool(text))
-        self.setStyleSheet(feedback_style(ok))
+        themed(self, lambda: feedback_style(ok))
 
 
 class HintBox(QtWidgets.QLabel):
     """Плашка с подсказкой (жёлтая) или ответом преподавателю (зелёная)."""
 
-    YELLOW = ("background-color: #3D3520; color: #FFE082; border: 1px solid #8D6E00; "
-              "border-radius: 5px; padding: 8px;")
-    GREEN = ("background-color: #1B3320; color: #A5D6A7; border: 1px solid #2E7D32; "
-             "border-radius: 5px; padding: 8px; font-weight: bold;")
+    YELLOW = "hint"
+    GREEN = "answer"
 
     def __init__(self, parent=None, style=YELLOW):
         super().__init__(parent)
         self.setWordWrap(True)
-        self.setStyleSheet(style)
+        themed(self, lambda: hint_style(style))
         self.hide()
 
     def show_hint(self, text):

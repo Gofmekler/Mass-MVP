@@ -1,6 +1,7 @@
 """Виды заданий и песочницы: панель прибора слева, задание и справочник справа."""
 from masslab.events import Event
 from masslab.views.qt.qt import QtCore, QtWidgets
+from masslab.views.qt.style import color, themed
 from masslab.views.qt.widgets import (FeedbackLabel, HintBox, QuestionWidget, ReferenceTable,
                                       label, scrollable)
 from masslab.views.qt.workspace_view import WorkspaceView
@@ -310,10 +311,10 @@ class AlloyView(_ChoiceTaskView):
             "Какой это сплав?")
         self.elements_check_requested = Event()
 
-        self._step1 = QtWidgets.QGroupBox("Шаг 1. Какие элементы есть в образце?")
+        self._step1 = QtWidgets.QGroupBox("Шаг 1. Элементы в образце")
         step1_layout = QtWidgets.QVBoxLayout(self._step1)
         self._elements_grid = QtWidgets.QGridLayout()
-        self._elements_grid.setHorizontalSpacing(12)
+        self._elements_grid.setHorizontalSpacing(6)
         step1_layout.addLayout(self._elements_grid)
         self._element_boxes = {}
         self._elements_check = QtWidgets.QPushButton("Проверить элементы")
@@ -343,9 +344,9 @@ class AlloyView(_ChoiceTaskView):
         self._element_boxes = {}
         correct = set(correct or ())
         for i, (symbol, text) in enumerate(items):
-            box = QtWidgets.QCheckBox(text + ("  ✓" if symbol in correct else ""))
+            box = QtWidgets.QCheckBox(text + (" ✓" if symbol in correct else ""))
             if symbol in correct:
-                box.setStyleSheet("color: #81C784; font-weight: bold;")
+                themed(box, lambda: f"color: {color('ok')}; font-weight: bold;")
             self._elements_grid.addWidget(box, i // 2, i % 2)
             self._element_boxes[symbol] = box
 
@@ -362,4 +363,4 @@ class AlloyView(_ChoiceTaskView):
         self._elements_check.setEnabled(first)
         self._step2.setEnabled(not first)
         self._step2.setTitle("Шаг 2. Какой это сплав?" if not first
-                             else "Шаг 2. Какой это сплав? (откроется после шага 1)")
+                             else "Шаг 2 (откроется после шага 1)")

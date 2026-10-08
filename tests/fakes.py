@@ -54,7 +54,7 @@ LOGIN_EVENTS = ("start_requested", "secret_entered", "teacher_demo_requested",
 class FakeMainView(FakeView):
     def __init__(self):
         super().__init__(["tick", "theory_requested", "help_requested", "tour_next",
-                          "tour_skip"], confirm=True)
+                          "tour_skip", "theme_toggled"], confirm=True)
         self.login = FakeView(LOGIN_EVENTS,
                               student_name="Иванов И. И.", student_group="ФИЗ-101")
         self.quiz = FakeView(["answer_selected", "next_requested", "prev_requested",

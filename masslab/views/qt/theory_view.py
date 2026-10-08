@@ -3,7 +3,7 @@ from masslab.events import Event
 from masslab.views.qt.plot_widget import PlotWidget
 from masslab.views.qt.qt import QtCore, QtWidgets
 from masslab.views.qt.scheme_widget import SchemeWidget
-from masslab.views.qt.style import ACCENT, STYLESHEET
+from masslab.views.qt.style import color, stylesheet, themed
 from masslab.views.qt.theory_widgets import AccelerationWidget, SpectrumBuildWidget, StepsWidget
 from masslab.views.qt.widgets import label
 
@@ -23,7 +23,7 @@ class _ResolutionPanel(QtWidgets.QWidget):
         self.slider.sliderMoved.connect(lambda v: self._value.setText(f"{v} В"))
         self.plot = PlotWidget()
         self.status = QtWidgets.QLabel()
-        self.status.setStyleSheet("color: #FFEB3B; font-size: 14px;")
+        themed(self.status, lambda: f"color: {color('highlight')}; font-size: 14px;")
         row = QtWidgets.QHBoxLayout()
         row.addWidget(QtWidgets.QLabel("Напряжение U:"))
         row.addWidget(self.slider, 1)
@@ -53,7 +53,7 @@ class TheoryView(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Методичка — времяпролётный масс-спектрометр")
-        self.setStyleSheet(STYLESHEET)
+        themed(self, stylesheet)
         self.section_selected = Event()
         self.next_requested = Event()
         self.prev_requested = Event()
@@ -64,13 +64,15 @@ class TheoryView(QtWidgets.QDialog):
         self._list.setWordWrap(True)
         self._list.setTextElideMode(QtCore.Qt.ElideNone)
         self._list.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self._list.setStyleSheet("QListWidget { font-size: 13px; } "
-                                 "QListWidget::item { padding: 6px 4px; } "
-                                 f"QListWidget::item:selected {{ background: #2E7D32; }}")
+        themed(self._list, lambda: (
+            "QListWidget { font-size: 13px; } QListWidget::item { padding: 6px 4px; } "
+            f"QListWidget::item:selected {{ background: {color('primary')}; "
+            f"color: {color('primary_text')}; }}"))
         self._list.currentRowChanged.connect(self._on_row)
 
         self._title = label("", "title", wrap=True)
-        self._title.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {ACCENT};")
+        themed(self._title,
+               lambda: f"font-size: 20px; font-weight: bold; color: {color('accent')};")
 
         self._scheme = SchemeWidget()
         self._accel = AccelerationWidget()
@@ -93,12 +95,13 @@ class TheoryView(QtWidgets.QDialog):
         self._caption.setAlignment(QtCore.Qt.AlignCenter)
         self._formula = label("")
         self._formula.setAlignment(QtCore.Qt.AlignCenter)
-        self._formula.setStyleSheet(
-            "font-size: 18px; font-weight: bold; color: #FFE082; background: #2A2A2A; "
-            "border: 1px solid #8D6E00; border-radius: 6px; padding: 8px;")
+        themed(self._formula, lambda: (
+            f"font-size: 18px; font-weight: bold; color: {color('hint_text')}; "
+            f"background: {color('hint_bg')}; border: 1px solid {color('hint_border')}; "
+            "border-radius: 6px; padding: 8px;"))
         self._points = QtWidgets.QTextBrowser()
-        self._points.setStyleSheet("QTextBrowser { background: #1E1E1E; border: none; "
-                                   "font-size: 15px; }")
+        themed(self._points, lambda: f"QTextBrowser {{ background: {color('bg')}; "
+                                     "border: none; font-size: 15px; }")
 
         self._prev = QtWidgets.QPushButton("← Назад")
         self._next = QtWidgets.QPushButton("Далее →")

@@ -15,6 +15,7 @@ from masslab.presenters.app import AppPresenter  # noqa: E402
 from masslab.presenters.tour import TOUR_STEPS  # noqa: E402
 from masslab.views import interfaces  # noqa: E402
 from masslab.views.qt.main_window import MainWindow  # noqa: E402
+from masslab.views.viewmodels import Curve, PlotData  # noqa: E402
 from tests.fakes import TEST_PASSWORD  # noqa: E402
 
 
@@ -133,3 +134,36 @@ def test_sandbox_page(window):
     assert window.sandbox._table.rowCount() == 3
     window.sandbox.exit_requested.emit()
     assert window._stack.currentWidget() is window.login
+
+
+def test_light_theme_restyles_window_and_plots(window):
+    from masslab.views.qt import style
+    window.demo.workspace.show_spectrum(PlotData(
+        curves=[Curve([0.0, 1.0], [0.0, 1.0], "#E0E0E0")], title="t", x_label="x", y_label="y"))
+    window.set_theme("light")
+    try:
+        assert style.theme() == "light"
+        assert style.THEMES["light"]["bg"] in window.styleSheet()
+        assert window._theme_button.toolTip() == "Тёмная тема"
+        ax = window.demo.workspace._spectrum._ax
+        line_color = ax.lines[0].get_color()
+        assert line_color != "#E0E0E0" and style.data_color("#E0E0E0") == line_color
+        assert style.THEMES["light"]["bg"] in window.theory.styleSheet()
+    finally:
+        window.set_theme("dark")
+    assert style.THEMES["dark"]["bg"] in window.styleSheet()
+    assert window._theme_button.toolTip() == "Светлая тема"
+
+
+def test_data_color_darkens_bright_colours_for_light_theme():
+    from masslab.views.qt import style
+    assert style.data_color("#FFEB3B") == "#FFEB3B"         # тёмная тема — без изменений
+    style.set_current("light")
+    try:
+        from matplotlib.colors import to_rgb
+        import colorsys
+        for value in ("#FFEB3B", "#4FC3F7", "#E0E0E0", "#FF5252"):
+            light = colorsys.rgb_to_hls(*to_rgb(style.data_color(value)))[1]
+            assert light <= 0.55
+    finally:
+        style.set_current("dark")

@@ -14,6 +14,8 @@ from masslab.presenters.sandbox import SandboxPresenter
 from masslab.presenters.theory import TheoryPresenter
 from masslab.presenters.tour import TourPresenter
 
+THEMES = ("dark", "light")
+DEFAULT_THEME = "dark"
 STAGE_CHIPS = ("Тест", "Задание 1", "Задание 2", "Задание 3", "Итог")
 CLOSE_DURING_LAB = ("Лабораторная работа не завершена.\n"
                     "Результаты нигде не сохраняются и будут потеряны. Закрыть программу?")
@@ -48,6 +50,9 @@ class AppPresenter:
         view.tick.connect(self._on_tick)
         view.theory_requested.connect(self._on_theory)
         view.help_requested.connect(self._on_help)
+        view.theme_toggled.connect(self._on_theme_toggled)
+        self._theme = DEFAULT_THEME          # только в памяти: не сохраняется между запусками
+        view.set_theme(self._theme)
 
     @property
     def session(self):
@@ -127,6 +132,14 @@ class AppPresenter:
     def _on_theory(self):
         self._theory.open()
 
+    @property
+    def theme(self):
+        return self._theme
+
+    def _on_theme_toggled(self):
+        self._theme = THEMES[(THEMES.index(self._theme) + 1) % len(THEMES)]
+        self._view.set_theme(self._theme)
+
     def _on_help(self):
         if self._tour.has_tour(self._page):
             self._tour.start(self._page)
@@ -142,11 +155,11 @@ class AppPresenter:
             return
         total = f"Всего {duration(s.total_duration())}"
         if s.teacher:
-            total = "Режим преподавателя  ·  " + total
+            total = "Демо · " + total
         if s.current is None:
             self._view.set_timer(total)
         else:
-            self._view.set_timer(f"Этап {duration(s.stage_duration(s.current))}  ·  {total}")
+            self._view.set_timer(f"Этап {duration(s.stage_duration(s.current))} · {total}")
 
     def _update_stages(self):
         s = self._session

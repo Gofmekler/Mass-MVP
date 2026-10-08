@@ -5,6 +5,7 @@
 (v = L / t), время растянуто так, что самый медленный ион летит ~4 с.
 """
 from masslab.views.qt.qt import QtCore, QtGui, QtWidgets
+from masslab.views.qt.style import color, data_color
 
 ANIMATION_SECONDS = 4.0
 PAUSE_SECONDS = 1.2
@@ -62,7 +63,7 @@ class SchemeWidget(QtWidgets.QWidget):
         p = QtGui.QPainter(self)
         p.setRenderHint(QtGui.QPainter.Antialiasing)
         w, h = self.width(), self.height()
-        p.fillRect(self.rect(), QtGui.QColor("#1A1A1A"))
+        p.fillRect(self.rect(), QtGui.QColor(color("plot_bg")))
         font = p.font()
         font.setPointSizeF(8.5)
         p.setFont(font)
@@ -75,22 +76,22 @@ class SchemeWidget(QtWidgets.QWidget):
         drift_x0 = gap_x0 + (right - gap_x0 - 24) * GAP_SHARE
         detector_x = right - 14
 
-        text = QtGui.QColor("#BDBDBD")
+        text = QtGui.QColor(color("draw_text"))
         # источник ионов
-        p.setPen(QtGui.QPen(QtGui.QColor("#FFB74D"), 2))
-        p.setBrush(QtGui.QColor("#3E2F1C"))
+        p.setPen(QtGui.QPen(QtGui.QColor(color("source")), 2))
+        p.setBrush(QtGui.QColor(color("source_fill")))
         p.drawRoundedRect(QtCore.QRectF(left, mid - 26, source_w - 8, 52), 6, 6)
         # сетки ускоряющего промежутка
-        p.setPen(QtGui.QPen(QtGui.QColor("#4FC3F7"), 2, QtCore.Qt.DashLine))
+        p.setPen(QtGui.QPen(QtGui.QColor(color("field")), 2, QtCore.Qt.DashLine))
         p.drawLine(QtCore.QPointF(gap_x0, top), QtCore.QPointF(gap_x0, bottom))
         p.drawLine(QtCore.QPointF(drift_x0, top), QtCore.QPointF(drift_x0, bottom))
         # дрейфовая трубка
-        p.setPen(QtGui.QPen(QtGui.QColor("#616161"), 2))
+        p.setPen(QtGui.QPen(QtGui.QColor(color("draw_line")), 2))
         p.setBrush(QtCore.Qt.NoBrush)
         p.drawRect(QtCore.QRectF(drift_x0, top + 6, detector_x - drift_x0, bottom - top - 12))
         # детектор
         p.setPen(QtCore.Qt.NoPen)
-        p.setBrush(QtGui.QColor("#81C784"))
+        p.setBrush(QtGui.QColor(color("ok")))
         p.drawRect(QtCore.QRectF(detector_x, top, 8, bottom - top))
 
         p.setPen(text)
@@ -117,12 +118,12 @@ class SchemeWidget(QtWidgets.QWidget):
         for i, ion in enumerate(self._ions):
             y = top + 12 + lane * (i + 0.5) if n > 1 else mid
             x = self._ion_x(ion.time_us, gap_x0, drift_x0, detector_x)
-            color = QtGui.QColor(ion.color)
+            ion_color = QtGui.QColor(data_color(ion.color))
             p.setPen(QtCore.Qt.NoPen)
-            p.setBrush(color)
+            p.setBrush(ion_color)
             p.drawEllipse(QtCore.QPointF(x, y), 4.5, 4.5)
             if ion.label and lane >= 11:
-                p.setPen(color)
+                p.setPen(ion_color)
                 p.drawText(QtCore.QPointF(x + 7, y + 4), ion.label)
 
     def _ion_x(self, drift_time, gap_x0, drift_x0, detector_x):

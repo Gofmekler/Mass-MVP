@@ -462,6 +462,18 @@ def test_help_and_theory_buttons():
     assert view.called("show_message") and not view.called("show_tour_step")
 
 
+def test_theme_toggle_is_kept_only_in_memory():
+    view = FakeMainView()
+    app = AppPresenter(view, random.Random(7), np_rng(), lambda p, r: None)
+    assert view.last("set_theme") == ("dark",)
+    view.theme_toggled.emit()
+    assert view.last("set_theme") == ("light",) and app.theme == "light"
+    app.start()                                # новый сеанс работы — тема не сбрасывается
+    assert app.theme == "light"
+    view.theme_toggled.emit()
+    assert view.last("set_theme") == ("dark",)
+
+
 def test_sandbox_from_login_and_back():
     view = FakeMainView()
     app = AppPresenter(view, random.Random(8), np_rng(), lambda p, r: None)

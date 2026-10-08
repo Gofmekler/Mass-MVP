@@ -1,6 +1,6 @@
 """Оверлей тур-подсказок: затемнение с «окном» вокруг элемента и облачко текста."""
 from masslab.views.qt.qt import QtCore, QtGui, QtWidgets, Signal
-from masslab.views.qt.style import ACCENT
+from masslab.views.qt.style import color, themed
 
 PADDING = 6
 BUBBLE_WIDTH = 360
@@ -20,18 +20,20 @@ class TourOverlay(QtWidgets.QWidget):
 
         self._bubble = QtWidgets.QFrame(self)
         self._bubble.setObjectName("tourBubble")
-        self._bubble.setStyleSheet(
-            f"QFrame#tourBubble {{ background-color: #263238; border: 2px solid {ACCENT}; "
-            "border-radius: 8px; } QFrame#tourBubble QLabel { background: transparent; }")
+        themed(self._bubble, lambda: (
+            f"QFrame#tourBubble {{ background-color: {color('bubble')}; "
+            f"border: 2px solid {color('accent')}; border-radius: 8px; }} "
+            "QFrame#tourBubble QLabel { background: transparent; }"))
         self._bubble.setFixedWidth(BUBBLE_WIDTH)
         self._title = QtWidgets.QLabel()
-        self._title.setStyleSheet(f"font-size: 15px; font-weight: bold; color: {ACCENT};")
+        themed(self._title,
+               lambda: f"font-size: 15px; font-weight: bold; color: {color('accent')};")
         self._text = QtWidgets.QLabel()
         self._text.setWordWrap(True)
         self._click = QtWidgets.QLabel("Щёлкните в любом месте, чтобы продолжить")
-        self._click.setStyleSheet("color: #9E9E9E; font-size: 12px;")
+        themed(self._click, lambda: f"color: {color('muted')}; font-size: 12px;")
         self._footer = QtWidgets.QLabel()
-        self._footer.setStyleSheet("color: #9E9E9E; font-size: 12px;")
+        themed(self._footer, lambda: f"color: {color('muted')}; font-size: 12px;")
         skip = QtWidgets.QPushButton("Пропустить")
         skip.setCursor(QtCore.Qt.PointingHandCursor)
         skip.clicked.connect(self.skip_requested.emit)
@@ -126,7 +128,7 @@ class TourOverlay(QtWidgets.QWidget):
             inner.addRoundedRect(hole, 6, 6)
             path = path.subtracted(inner)
             p.fillPath(path, QtGui.QColor(0, 0, 0, 170))
-            p.setPen(QtGui.QPen(QtGui.QColor(ACCENT), 2))
+            p.setPen(QtGui.QPen(QtGui.QColor(color('accent')), 2))
             p.setBrush(QtCore.Qt.NoBrush)
             p.drawRoundedRect(hole, 6, 6)
         else:

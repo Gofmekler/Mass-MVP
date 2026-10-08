@@ -1,9 +1,12 @@
 """Анимации и рисунки методички (QPainter, без логики предметной области)."""
 from masslab.views.qt.qt import QtCore, QtGui, QtWidgets
+from masslab.views.qt.style import color, data_color
 
 FRAME_MS = 30
-BG = QtGui.QColor("#1A1A1A")
-TEXT = QtGui.QColor("#BDBDBD")
+
+
+def _c(key):
+    return QtGui.QColor(color(key))
 
 
 class _Animated(QtWidgets.QWidget):
@@ -46,7 +49,7 @@ class _Animated(QtWidgets.QWidget):
     def _painter(self):
         p = QtGui.QPainter(self)
         p.setRenderHint(QtGui.QPainter.Antialiasing)
-        p.fillRect(self.rect(), BG)
+        p.fillRect(self.rect(), _c("plot_bg"))
         font = p.font()
         font.setPointSizeF(9.5)
         p.setFont(font)
@@ -74,16 +77,16 @@ class AccelerationWidget(_Animated):
         top, bottom = 40, h - 34
 
         # пластины ускоряющего промежутка и поле
-        p.setPen(QtGui.QPen(QtGui.QColor("#4FC3F7"), 3))
+        p.setPen(QtGui.QPen(_c("field"), 3))
         p.drawLine(QtCore.QPointF(gap_x0, top), QtCore.QPointF(gap_x0, bottom))
         p.drawLine(QtCore.QPointF(gap_x1, top), QtCore.QPointF(gap_x1, bottom))
-        p.setPen(QtGui.QPen(QtGui.QColor("#37474F"), 1.5))
+        p.setPen(QtGui.QPen(_c("draw_dim"), 1.5))
         for k in range(4):
             y = top + (bottom - top) * (k + 0.5) / 4
             p.drawLine(QtCore.QPointF(gap_x0 + 10, y), QtCore.QPointF(gap_x1 - 14, y))
             p.drawLine(QtCore.QPointF(gap_x1 - 14, y), QtCore.QPointF(gap_x1 - 22, y - 4))
             p.drawLine(QtCore.QPointF(gap_x1 - 14, y), QtCore.QPointF(gap_x1 - 22, y + 4))
-        p.setPen(TEXT)
+        p.setPen(_c("draw_text"))
         p.drawText(QtCore.QRectF(gap_x0 - 30, 4, 60, 30), QtCore.Qt.AlignCenter, "+U")
         p.drawText(QtCore.QRectF(gap_x1 - 30, 4, 60, 30), QtCore.Qt.AlignCenter, "0 В")
         p.drawText(QtCore.QRectF(gap_x0, bottom + 4, w - gap_x0 - 10, 24),
@@ -95,7 +98,7 @@ class AccelerationWidget(_Animated):
         for i, ion in enumerate(self._ions):
             y = top + lane * (i + 0.5)
             x = self._ion_x(ion.speed, gap_x0, gap_x1, end_x)
-            color = QtGui.QColor(ion.color)
+            color = QtGui.QColor(data_color(ion.color))
             p.setPen(QtCore.Qt.NoPen)
             p.setBrush(color)
             p.drawEllipse(QtCore.QPointF(x, y), 7, 7)
@@ -118,13 +121,13 @@ class AccelerationWidget(_Animated):
         grown = min(1.0, self._t / (self.DURATION * 0.45))
         for k, (name, value) in enumerate((("энергия qU", 1.0), ("скорость v", ion.speed))):
             yy = y - 14 + k * 18
-            p.setPen(TEXT)
+            p.setPen(_c("draw_text"))
             p.drawText(QtCore.QRectF(x, yy - 7, 84, 14), QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter,
                        name)
             p.setPen(QtCore.Qt.NoPen)
-            p.setBrush(QtGui.QColor("#333333"))
+            p.setBrush(_c("draw_empty"))
             p.drawRect(QtCore.QRectF(x + 86, yy - 5, width - 86, 10))
-            p.setBrush(color if k else QtGui.QColor("#FFB74D"))
+            p.setBrush(color if k else _c("source"))
             p.drawRect(QtCore.QRectF(x + 86, yy - 5, (width - 86) * value * grown, 10))
 
 
@@ -155,10 +158,10 @@ class SpectrumBuildWidget(_Animated):
             return left + (right - left) * t_us / t_max
 
         # оси
-        p.setPen(QtGui.QPen(QtGui.QColor("#616161"), 1.5))
+        p.setPen(QtGui.QPen(_c("draw_line"), 1.5))
         p.drawLine(QtCore.QPointF(left, axis_y), QtCore.QPointF(right, axis_y))
         p.drawLine(QtCore.QPointF(left, axis_y), QtCore.QPointF(left, top - 10))
-        p.setPen(TEXT)
+        p.setPen(_c("draw_text"))
         p.drawText(QtCore.QRectF(left, axis_y + 6, right - left, 20), QtCore.Qt.AlignCenter,
                    "время пролёта t  →  (чем тяжелее ион, тем правее пик)")
         p.save()
@@ -170,7 +173,7 @@ class SpectrumBuildWidget(_Animated):
         # пики растут по мере прихода ионов; падающие «ионы» над ними
         cycle = self.phase
         for pk in self._peaks:
-            color = QtGui.QColor(pk.color)
+            color = QtGui.QColor(data_color(pk.color))
             x = x_of(pk.time_us)
             arrival = pk.time_us / t_max          # ионы лёгких видов приходят раньше
             grown = max(0.0, min(1.0, (cycle - arrival * 0.6) / 0.4))
@@ -214,7 +217,7 @@ class StepsWidget(QtWidgets.QWidget):
     def paintEvent(self, event):
         p = QtGui.QPainter(self)
         p.setRenderHint(QtGui.QPainter.Antialiasing)
-        p.fillRect(self.rect(), BG)
+        p.fillRect(self.rect(), _c("plot_bg"))
         n = len(self._steps)
         if not n:
             return
@@ -229,18 +232,18 @@ class StepsWidget(QtWidgets.QWidget):
         colors = ("#F9A825", "#4FC3F7", "#81C784", "#BA68C8", "#4DB6AC")
         for i, title in enumerate(self._steps):
             x = 20 + i * (box_w + gap)
-            color = QtGui.QColor(colors[i % len(colors)])
+            color = QtGui.QColor(data_color(colors[i % len(colors)]))
             p.setPen(QtGui.QPen(color, 2))
             fill = QtGui.QColor(color)
             fill.setAlpha(40)
             p.setBrush(fill)
             p.drawRoundedRect(QtCore.QRectF(x, y, box_w, box_h), 10, 10)
-            p.setPen(QtGui.QColor("#EEEEEE"))
+            p.setPen(_c("draw_label"))
             p.drawText(QtCore.QRectF(x + 4, y, box_w - 8, box_h),
                        QtCore.Qt.AlignCenter | QtCore.Qt.TextWordWrap, title)
             if i < n - 1:
                 ax = x + box_w + 4
-                p.setPen(QtGui.QPen(QtGui.QColor("#9E9E9E"), 2))
+                p.setPen(QtGui.QPen(_c("muted"), 2))
                 p.drawLine(QtCore.QPointF(ax, y + box_h / 2), QtCore.QPointF(ax + gap - 8, y + box_h / 2))
                 p.drawLine(QtCore.QPointF(ax + gap - 8, y + box_h / 2),
                            QtCore.QPointF(ax + gap - 14, y + box_h / 2 - 5))

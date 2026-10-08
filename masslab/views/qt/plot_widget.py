@@ -5,7 +5,7 @@ from masslab.views.qt.qt import QtCore, QtWidgets  # до matplotlib: задаё
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
-from masslab.views.qt.style import PLOT_BG, TEXT
+from masslab.views.qt.style import color, data_color
 
 ANIMATION_FRAMES = 40
 MAX_LEGEND_ITEMS = 11      # больше — легенда закрывает график, подписи есть на спектре
@@ -52,7 +52,8 @@ class PlotWidget(QtWidgets.QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._fig = Figure(figsize=(5, 2.5), dpi=90, facecolor=PLOT_BG,
+        self._last = ("clear", "")    # что показано — для перерисовки при смене темы
+        self._fig = Figure(figsize=(5, 2.5), dpi=90, facecolor=color("plot_bg"),
                            constrained_layout=True)
         self._canvas = FigureCanvas(self._fig)
         self._canvas.setMinimumHeight(140)
@@ -79,48 +80,62 @@ class PlotWidget(QtWidgets.QWidget):
         self._cursor = []
         ax = self._ax
         ax.clear()
-        ax.set_facecolor(PLOT_BG)
-        ax.tick_params(colors=TEXT, labelsize=8)
+        self._fig.set_facecolor(color("plot_bg"))
+        ax.set_facecolor(color("plot_bg"))
+        ax.tick_params(colors=color("text"), labelsize=8)
         for spine in ax.spines.values():
-            spine.set_color("#555")
-        ax.grid(True, color="#333", linewidth=0.6)
+            spine.set_color(color("border_strong"))
+        ax.grid(True, color=color("grid"), linewidth=0.6)
+
+    def apply_theme(self):
+        """Перерисовывает показанное в цветах текущей темы."""
+        kind, payload = self._last
+        if kind == "plot":
+            self.render(payload)
+        else:
+            self.clear(payload)
 
     def clear(self, message=""):
+        self._last = ("clear", message)
         self._reset_axes()
         self._ax.set_xticks([])
         self._ax.set_yticks([])
         if message:
-            self._ax.text(0.5, 0.5, message, color="#888", ha="center", va="center",
+            self._ax.text(0.5, 0.5, message, color=color("muted"), ha="center", va="center",
                           fontsize=12, transform=self._ax.transAxes)
         self._canvas.draw_idle()
 
     def render(self, plot, animate=False):
+        self._last = ("plot", plot)
         self._reset_axes()
         ax = self._ax
         ax.set_yscale("log" if plot.y_log else "linear")
         for c in plot.curves:
             x, y = np.asarray(c.x, dtype=float), np.asarray(c.y, dtype=float)
-            (line,) = ax.plot(x, y, color=c.color, linestyle=c.style, linewidth=c.width,
+            curve_color = data_color(c.color)
+            (line,) = ax.plot(x, y, color=curve_color, linestyle=c.style, linewidth=c.width,
                               alpha=c.alpha, label=c.label or None)
             if animate and c.animate:
-                (dot,) = ax.plot([], [], "o", color=c.color, markersize=5, alpha=c.alpha)
+                (dot,) = ax.plot([], [], "o", color=curve_color, markersize=5, alpha=c.alpha)
                 self._animated.append((line, dot, x, y))
         for m, level in _label_levels(plot.markers, plot.x_lim):
-            ax.axvline(m.x, color=m.color, linestyle=":", linewidth=1.0, alpha=0.9)
+            marker_color = data_color(m.color)
+            ax.axvline(m.x, color=marker_color, linestyle=":", linewidth=1.0, alpha=0.9)
             ax.annotate(m.label, xy=(m.x, 1.0), xycoords=("data", "axes fraction"),
                         xytext=(3, -14 - 13 * level), textcoords="offset points",
-                        color=m.color, fontsize=10, fontweight="bold")
-        ax.set_title(plot.title, color=TEXT, fontsize=10)
-        ax.set_xlabel(plot.x_label, color=TEXT, fontsize=9)
-        ax.set_ylabel(plot.y_label, color=TEXT, fontsize=9)
+                        color=marker_color, fontsize=10, fontweight="bold")
+        text = color("text")
+        ax.set_title(plot.title, color=text, fontsize=10)
+        ax.set_xlabel(plot.x_label, color=text, fontsize=9)
+        ax.set_ylabel(plot.y_label, color=text, fontsize=9)
         if plot.x_lim:
             ax.set_xlim(*plot.x_lim)
         if plot.y_lim:
             ax.set_ylim(*plot.y_lim)
         labelled = sum(1 for c in plot.curves if c.label)
         if 0 < labelled <= MAX_LEGEND_ITEMS:
-            legend = ax.legend(loc="lower right", fontsize=8, facecolor="#2A2A2A",
-                               edgecolor="#555", labelcolor=TEXT)
+            legend = ax.legend(loc="lower right", fontsize=8, facecolor=color("panel"),
+                               edgecolor=color("border_strong"), labelcolor=text)
             legend.set_draggable(True)
         if self._animated:
             self._anim_x_max = plot.x_lim[1] if plot.x_lim else max(
@@ -144,16 +159,17 @@ class PlotWidget(QtWidgets.QWidget):
     def show_cursor(self, x, y, text):
         self.hide_cursor(redraw=False)
         ax = self._ax
-        self._cursor.append(ax.axvline(x, color="#FFFFFF", linewidth=0.8, alpha=0.6))
+        mark = color("highlight")
+        self._cursor.append(ax.axvline(x, color=color("text"), linewidth=0.8, alpha=0.6))
         if y is not None:
-            self._cursor.extend(ax.plot([x], [y], "o", color="#FFEB3B", markersize=6))
+            self._cursor.extend(ax.plot([x], [y], "o", color=mark, markersize=6))
         lo, hi = ax.get_xlim()
         right = x > (lo + hi) / 2
         self._cursor.append(ax.annotate(
             text, xy=(x, 0.80), xycoords=("data", "axes fraction"),
             xytext=(-8 if right else 8, 0), textcoords="offset points",
-            ha="right" if right else "left", color="#FFEB3B", fontsize=10,
-            bbox=dict(boxstyle="round,pad=0.3", fc="#2A2A2A", ec="#FFEB3B", alpha=0.9)))
+            ha="right" if right else "left", color=mark, fontsize=10,
+            bbox=dict(boxstyle="round,pad=0.3", fc=color("panel"), ec=mark, alpha=0.9)))
         self._canvas.draw_idle()
 
     def hide_cursor(self, redraw=True):

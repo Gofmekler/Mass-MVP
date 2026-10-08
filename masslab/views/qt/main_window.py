@@ -1,7 +1,8 @@
 from masslab.events import Event
 from masslab.views.qt.pages import LoginView, QuizView, ReportView
 from masslab.views.qt.qt import QtCore, QtWidgets, exec_app
-from masslab.views.qt.style import ACCENT, CHIP_STYLES, STYLESHEET
+from masslab.views.qt import style
+from masslab.views.qt.style import color, themed
 from masslab.views.qt.task_views import AlloyView, DemoView, ElementView, SandboxView
 from masslab.views.qt.theory_view import TheoryView
 from masslab.views.qt.tour_overlay import TourOverlay
@@ -15,7 +16,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("MassLab — времяпролётный масс-спектрометр")
-        self.setStyleSheet(STYLESHEET)
+        self.setStyleSheet(style.stylesheet())
         self.setMinimumSize(MIN_WIDTH, MIN_HEIGHT)
         self.resize(1366, 768)
         self.tick = Event()
@@ -23,6 +24,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.help_requested = Event()
         self.tour_next = Event()
         self.tour_skip = Event()
+        self.theme_toggled = Event()
         self._close_text = None
 
         self.login = LoginView()
@@ -42,21 +44,27 @@ class MainWindow(QtWidgets.QMainWindow):
 
         header = QtWidgets.QWidget()
         header.setObjectName("header")
-        header.setStyleSheet("QWidget#header { background-color: #252525; }")
+        themed(header, lambda: f"QWidget#header {{ background-color: {color('header')}; }} "
+                               "QWidget#header QLabel { background: transparent; }")
         header_layout = QtWidgets.QHBoxLayout(header)
         header_layout.setContentsMargins(10, 6, 10, 6)
         app_title = QtWidgets.QLabel("MassLab")
-        app_title.setStyleSheet(f"font-size: 17px; font-weight: bold; color: {ACCENT};")
+        themed(app_title,
+               lambda: f"font-size: 17px; font-weight: bold; color: {color('accent')};")
         header_layout.addWidget(app_title)
         header_layout.addSpacing(10)
         self._chips_layout = QtWidgets.QHBoxLayout()
         self._chips_layout.setSpacing(4)
         self._chips = []
         header_layout.addLayout(self._chips_layout)
-        header_layout.addStretch(1)
         self._timer = QtWidgets.QLabel()
-        self._timer.setStyleSheet("font-size: 13px; font-family: monospace; color: #FFEB3B;")
-        header_layout.addWidget(self._timer)
+        themed(self._timer, lambda: "font-size: 13px; font-family: monospace; "
+                                    f"color: {color('highlight')};")
+        # при нехватке места сжимается таймер, а не названия этапов
+        self._timer.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Preferred)
+        self._timer.setMinimumWidth(120)
+        self._timer.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        header_layout.addWidget(self._timer, 1)
         header_layout.addSpacing(10)
         self._theory_button = QtWidgets.QPushButton("Методичка")
         self._theory_button.clicked.connect(self.theory_requested.emit)
@@ -65,6 +73,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self._help_button.setFixedWidth(36)
         self._help_button.setStyleSheet("font-weight: bold;")
         self._help_button.clicked.connect(self.help_requested.emit)
+        self._theme_button = QtWidgets.QPushButton("◐")
+        self._theme_button.setFixedWidth(36)
+        self._theme_button.clicked.connect(self.theme_toggled.emit)
+        self._update_theme_button()
+        header_layout.addWidget(self._theme_button)
         header_layout.addWidget(self._theory_button)
         header_layout.addWidget(self._help_button)
 
@@ -113,10 +126,20 @@ class MainWindow(QtWidgets.QMainWindow):
                 self._chips.append(chip)
         for chip, (title, state) in zip(self._chips, stages):
             chip.setText(("✓ " if state == "done" else "") + title)
-            chip.setStyleSheet(CHIP_STYLES[state] + " padding: 3px 8px; border-radius: 9px;")
+            themed(chip, lambda state=state:
+                   style.chip_style(state) + " padding: 3px 8px; border-radius: 9px;")
+
+    def set_theme(self, name):
+        style.apply_theme(self, name)
+        self._update_theme_button()
+
+    def _update_theme_button(self):
+        light = style.theme() == "light"
+        self._theme_button.setToolTip("Тёмная тема" if light else "Светлая тема")
 
     def set_timer(self, text):
         self._timer.setText(text)
+        self._timer.setToolTip(text)
 
     def show_message(self, title, text):
         box = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Information, title, text,
