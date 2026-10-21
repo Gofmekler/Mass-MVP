@@ -9,9 +9,10 @@ FEEDBACK_FORM_URL = "https://forms.gle/KEzi6wfoXNUKXnQ3A"
 #   python -c "import hashlib; print(hashlib.sha256('пароль'.encode()).hexdigest())"
 SANDBOX_PASSWORD_SHA256 = "46db8f98516613ca2397b9dd4b4fcc92efb5ce07dba8d18c12b1a9d22596a751"
 
-# Окно «О программе». Замените заглушки своими данными.
+# Окно «О программе».
 APP_VERSION = "1.0"
-AUTHOR = "Фамилия Имя Отчество"
-SUPERVISOR = "Фамилия И. О., должность"
-UNIVERSITY = "Название университета, факультет, кафедра"
+AUTHOR = "Мойсейчик Максим"
+SUPERVISOR = "Крупская Татьяна Константиновна"
+UNIVERSITY = ("ГрГУ им. Янки Купалы, физико-технический факультет, "
+              "кафедра теоретической физики и теплотехники")
 YEAR = "2026"
