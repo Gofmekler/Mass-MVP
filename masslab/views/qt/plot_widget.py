@@ -64,7 +64,7 @@ class PlotWidget(QtWidgets.QWidget):
 
         self._cursor = []
         self._animated = []           # [(line, dot, x, y)]
-        self._anim_x_max = 0.0
+        self._anim_x_min = self._anim_x_max = 0.0
         self._frame = 0
         self._timer = QtCore.QTimer(self)
         self._timer.setInterval(ANIMATION_INTERVAL_MS)
@@ -118,6 +118,13 @@ class PlotWidget(QtWidgets.QWidget):
             if animate and c.animate:
                 (dot,) = ax.plot([], [], "o", color=curve_color, markersize=5, alpha=c.alpha)
                 self._animated.append((line, dot, x, y))
+        for band in plot.bands:
+            band_color = data_color(band.color)
+            ax.axhspan(band.y0, band.y1, color=band_color, alpha=0.15, linewidth=0)
+            if band.label:
+                ax.text(0.5, (band.y0 + band.y1) / 2, band.label, color=band_color,
+                        fontsize=8, ha="center", va="center",
+                        transform=ax.get_yaxis_transform())
         for m, level in _label_levels(plot.markers, plot.x_lim):
             marker_color = data_color(m.color)
             ax.axvline(m.x, color=marker_color, linestyle=":", linewidth=1.0, alpha=0.9)
@@ -138,6 +145,8 @@ class PlotWidget(QtWidgets.QWidget):
                                edgecolor=color("border_strong"), labelcolor=text)
             legend.set_draggable(True)
         if self._animated:
+            self._anim_x_min = plot.x_lim[0] if plot.x_lim else min(
+                float(x.min()) for _, _, x, _ in self._animated)
             self._anim_x_max = plot.x_lim[1] if plot.x_lim else max(
                 float(x.max()) for _, _, x, _ in self._animated)
             self._frame = 0
@@ -147,7 +156,8 @@ class PlotWidget(QtWidgets.QWidget):
 
     def _animate_step(self):
         self._frame += 1
-        cut = self._anim_x_max * min(1.0, self._frame / ANIMATION_FRAMES)
+        lo, hi = self._anim_x_min, self._anim_x_max
+        cut = lo + (hi - lo) * min(1.0, self._frame / ANIMATION_FRAMES)
         for line, dot, x, y in self._animated:
             xs, ys = _clip(x, y, cut)
             line.set_data(xs, ys)

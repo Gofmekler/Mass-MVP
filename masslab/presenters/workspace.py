@@ -7,7 +7,7 @@ from masslab.model.physics import (DRIFT_LENGTH, LENGTH_MAX, LENGTH_MIN, LENGTH_
 from masslab.model.spectrum import (build_spectrum, find_peaks, residual_gas_peaks,
                                     time_window)
 from masslab.presenters.formatting import num
-from masslab.views.viewmodels import Curve, Marker, PlotData, SchemeData, SchemeIon
+from masslab.views.viewmodels import Band, Curve, Marker, PlotData, SchemeData, SchemeIon
 
 PALETTE = ("#4FC3F7", "#81C784", "#FFB74D", "#BA68C8", "#4DB6AC",
            "#F06292", "#AED581", "#90A4AE", "#FFF176", "#7986CB")
@@ -15,6 +15,11 @@ UNKNOWN_COLOR = "#FF5252"
 ISOTOPE_COLOR = "#B0BEC5"
 GAS_COLOR = "#8D8D8D"
 DETECTOR_COLOR = "#757575"
+FIELD_COLOR = "#4FC3F7"
+# Ускоряющий промежуток на графике траекторий: показан условно (в расчёте времени
+# пролёта не участвует, t отсчитывается от влёта в дрейфовую трубку).
+ACCEL_GAP = 0.15       # м
+ACCEL_POINTS = 24
 LOG_FLOOR = 1e-4
 HINT = "Наведите курсор на пик спектра, чтобы измерить время пролёта"
 EMPTY = "Запустите ионы, чтобы получить спектр"
@@ -206,19 +211,30 @@ class WorkspacePresenter:
         x_max = self._t_max * 1e6
         L = tof.length
         top = max(p.intensity for p in self._peaks)
-        curves = [Curve((0.0, x_max), (L, L), DETECTOR_COLOR, "Детектор", "--", 1.0,
+        ions = self._visible_ions()
+        # разгон из покоя на длине d: x растёт как t², время разгона 2d / v
+        accel_us = {id(p): 2 * ACCEL_GAP / tof.velocity(p.mass, p.charge) * 1e6 for p in ions}
+        x_min = -max(accel_us.values(), default=0.0) * 1.05
+        curves = [Curve((x_min, x_max), (L, L), DETECTOR_COLOR, "Детектор", "--", 1.0,
                         animate=False)]
         seen = set()
-        for p in self._visible_ions():
+        for p in ions:
             t_us = tof.flight_time(p.mass, p.charge) * 1e6
             color, style, width, alpha = self._ion_style(p, colors, top)
             label = {"?": "Неизвестный"}.get(p.label, p.label)
             if label in seen:
                 label = ""
             seen.add(label)
-            curves.append(Curve((0.0, t_us), (0.0, L), color, label, style, width, alpha))
-        return PlotData("Траектории ионов в дрейфовой трубке", "Время t, мкс",
-                        "Координата x, м", tuple(curves), (), (0.0, x_max), (0.0, L * 1.1))
+            ta = accel_us[id(p)]
+            t = np.linspace(-ta, 0.0, ACCEL_POINTS)
+            x = -ACCEL_GAP + ACCEL_GAP * ((t + ta) / ta) ** 2
+            curves.append(Curve(tuple(t) + (t_us,), tuple(x) + (L,),
+                                color, label, style, width, alpha))
+        return PlotData("Траектории ионов: разгон и полёт в трубке",
+                        "Время t, мкс (0 — влёт в дрейфовую трубку)",
+                        "Координата x, м", tuple(curves), (), (x_min, x_max),
+                        (-ACCEL_GAP * 1.15, L * 1.1),
+                        bands=(Band(-ACCEL_GAP, 0.0, FIELD_COLOR, "Разгон в поле U"),))
 
     def _scheme(self, tof, colors):
         top = max(p.intensity for p in self._peaks)

@@ -22,6 +22,15 @@ class Marker:
 
 
 @dataclass(frozen=True)
+class Band:
+    """Горизонтальная полоса на графике (например, область ускоряющего поля)."""
+    y0: float
+    y1: float
+    color: str
+    label: str = ""
+
+
+@dataclass(frozen=True)
 class PlotData:
     title: str
     x_label: str
@@ -31,6 +40,7 @@ class PlotData:
     x_lim: tuple = None
     y_lim: tuple = None
     y_log: bool = False
+    bands: tuple = ()
 
 
 @dataclass(frozen=True)

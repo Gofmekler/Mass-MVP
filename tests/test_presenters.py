@@ -229,6 +229,25 @@ def test_demo_launch_fills_flight_table():
     assert view.last("show_flight_table")[0][0][3] != rows[0][3]
 
 
+def test_trajectories_show_acceleration_then_uniform_flight():
+    from masslab.presenters.workspace import ACCEL_GAP
+    presenter, view, _ = _demo()
+    view.launch_requested.emit()
+    plot = view.workspace.last("show_trajectories")[0]
+    assert plot.bands and plot.bands[0].y0 == -ACCEL_GAP and plot.bands[0].y1 == 0.0
+    h, ar = (c for c in plot.curves if c.label in ("H⁺", "Ar⁺"))
+    for c in (h, ar):
+        t, x = np.array(c.x), np.array(c.y)
+        assert x[0] == pytest.approx(-ACCEL_GAP) and t[0] < 0
+        assert np.all(np.diff(t) > 0) and np.all(np.diff(x) >= 0)
+        gap = t <= 0
+        assert x[gap][-1] == pytest.approx(0.0)
+        speed = np.diff(x[gap]) / np.diff(t[gap])
+        assert np.all(np.diff(speed) > 0)            # в поле ион ускоряется
+    assert ar.x[0] < h.x[0]                           # тяжёлый разгоняется дольше
+    assert plot.x_lim[0] <= ar.x[0]
+
+
 def test_demo_double_charge_adds_ions():
     presenter, view, _ = _demo(selected=("Ar", "Ne"), double=True)
     view.launch_requested.emit()
