@@ -16,6 +16,7 @@ class IWorkspaceView(Protocol):
     length_changed: Event        # (float) м
     log_scale_toggled: Event     # (bool)
     spectrum_hovered: Event      # (float | None) время под курсором, мкс
+    spectrum_clicked: Event      # (float) время в точке щелчка, мкс
 
     def set_voltage_range(self, minimum: int, maximum: int, step: int) -> None: ...
     def set_voltage(self, value: int) -> None: ...
@@ -31,6 +32,8 @@ class IWorkspaceView(Protocol):
     def show_cursor(self, x: float, y: Optional[float], text: str) -> None: ...
     def hide_cursor(self) -> None: ...
     def set_readout(self, text: str) -> None: ...
+    def show_pins(self, pins: Sequence[tuple]) -> None: ...   # [(x, подпись)] отметки пиков
+    def set_measurement(self, text: str) -> None: ...         # пусто — скрыть
 
 
 class IIonLauncherView(Protocol):
@@ -131,6 +134,17 @@ class IAlloyView(Protocol):
     def show_reference(self, rows: Sequence[Sequence[str]]) -> None: ...
 
 
+class IDefenseView(Protocol):
+    """Защита работы: вопросы по результатам заданий 2 и 3."""
+    answer_selected: Event           # (int вопрос, int вариант)
+    check_requested: Event
+
+    def show_summary(self, text: str) -> None: ...
+    def show_questions(self, questions: Sequence) -> None: ...   # [QuestionItem]
+    def show_feedback(self, text: str, ok: Optional[bool]) -> None: ...
+    def show_hint(self, text: Optional[str]) -> None: ...
+
+
 class IReportView(Protocol):
     new_session_requested: Event
     exit_requested: Event
@@ -164,6 +178,7 @@ class IMainView(Protocol):
     demo: IDemoView
     element: IElementView
     alloy: IAlloyView
+    defense: IDefenseView
     report: IReportView
     sandbox: ISandboxView
     theory: ITheoryView
@@ -173,11 +188,13 @@ class IMainView(Protocol):
     tour_next: Event
     tour_skip: Event
     theme_toggled: Event             # кнопка «Светлая/Тёмная тема»
+    about_requested: Event           # кнопка «О программе»
 
     def show_page(self, page: str) -> None: ...
     def set_stages(self, stages: Sequence[tuple]) -> None: ...
     def set_timer(self, text: str) -> None: ...
     def set_theme(self, name: str) -> None: ...      # "dark" | "light"
+    def show_about(self, title: str, html: str) -> None: ...
     def show_message(self, title: str, text: str) -> None: ...
     def confirm(self, title: str, text: str) -> bool: ...
     def set_close_confirmation(self, text: Optional[str]) -> None: ...

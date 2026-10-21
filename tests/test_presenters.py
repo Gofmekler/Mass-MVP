@@ -248,6 +248,29 @@ def test_trajectories_show_acceleration_then_uniform_flight():
     assert plot.x_lim[0] <= ar.x[0]
 
 
+def test_two_peak_measurement():
+    presenter, view, _ = _demo()                     # H⁺ и Ar⁺
+    view.launch_requested.emit()
+    ws = view.workspace
+    found = sorted(p.time * 1e6 for p in presenter._ws._found)
+    t_h, t_ar = found[0], found[-1]
+    ws.spectrum_clicked.emit(t_ar * 1.001)           # щелчок рядом с пиком прилипает к нему
+    assert ws.last("show_pins")[0] == [(pytest.approx(t_ar), "1")]
+    assert "второму" in ws.last("set_measurement")[0]
+    ws.spectrum_clicked.emit(t_h)
+    pins = ws.last("show_pins")[0]
+    assert [label for _, label in pins] == ["1", "2"] and pins[0][0] < pins[1][0]
+    text = ws.last("set_measurement")[0]
+    ratio = (t_ar / t_h) ** 2
+    assert "m₂/m₁" in text and f"{ratio:.3f}".replace(".", ",")[:4] in text
+    ws.spectrum_clicked.emit((t_h + t_ar) / 2)       # мимо пиков — отметки не меняются
+    assert ws.last("show_pins")[0] == pins
+    ws.spectrum_clicked.emit(t_h)                    # повторный щелчок по отмеченному пику
+    assert ws.last("show_pins")[0] == pins
+    ws.voltage_changed.emit(6000)                    # другое U — отметки сбрасываются
+    assert ws.last("show_pins")[0] == [] and ws.last("set_measurement")[0] == ""
+
+
 def test_demo_double_charge_adds_ions():
     presenter, view, _ = _demo(selected=("Ar", "Ne"), double=True)
     view.launch_requested.emit()
@@ -448,17 +471,23 @@ def test_full_lab_flow_produces_report():
     app._stages["task2"]._on_completed(1, StageReport("Задание 2"))
     clock.advance(500)
     app._stages["task3"]._on_completed(3, StageReport("Задание 3"))
+    assert view.last("show_page") == ("defense",)
+    assert "Ваши результаты" in view.defense.last("show_summary")[0]
+    clock.advance(200)
+    app._stages["defense"]._on_completed(1, StageReport("Защита работы"))
 
     assert view.last("show_page") == ("report",)
     report = view.report.last("show_report")[0]
     assert report.student == "Иванов И. И." and report.group == "ФИЗ-101"
-    assert [r.duration for r in report.rows] == ["00:05:00", "00:10:00", "00:06:40", "00:08:20"]
+    assert [r.duration for r in report.rows] == ["00:05:00", "00:10:00", "00:06:40", "00:08:20",
+                                                "00:03:20"]
     assert report.rows[3].attempts == "3 попытки"
-    assert report.total == "00:30:00"
+    assert report.total == "00:33:20"
     assert report.verdict == "ЗАЧТЕНО"
     assert report.finished_at == "04.10.2026 12:30"
     assert view.last("set_stages")[0][-1] == ("Итог", "current")
-    assert [st.title for st in report.stages] == ["Задание 1", "Задание 2", "Задание 3"]
+    assert [st.title for st in report.stages] == ["Задание 1", "Задание 2", "Задание 3",
+                                                  "Защита работы"]
 
     view.report.returns["ask_save_path"] = "/tmp/отчёт"
     view.report.export_requested.emit()
@@ -491,6 +520,45 @@ def test_theme_toggle_is_kept_only_in_memory():
     assert app.theme == "light"
     view.theme_toggled.emit()
     assert view.last("set_theme") == ("dark",)
+
+
+def test_defense_locks_correct_and_replaces_wrong():
+    from masslab.model.alloys import ALLOYS
+    from masslab.model.defense import ElementResult
+    from masslab.presenters.defense import DefensePresenter
+    done = []
+    view = FakeView(["answer_selected", "check_requested"])
+    presenter = DefensePresenter(view, random.Random(2), lambda n, r: done.append((n, r)))
+    presenter.element = ElementResult("F", 3000, 1.2, 6.874)
+    presenter.alloy = ALLOYS[0]
+    presenter.start()
+    assert "F — Фтор" in view.last("show_summary")[0]
+    view.check_requested.emit()
+    assert view.last("show_feedback") == ("Ответьте на все вопросы.", False)
+    questions = list(presenter._task.questions)
+    for i, q in enumerate(questions):
+        right = i != 1
+        view.answer_selected.emit(i, q.correct_index if right else (q.correct_index + 1) % 5)
+    view.check_requested.emit()
+    assert done == [] and view.last("show_feedback")[1] is False
+    items = view.last("show_questions")[0]
+    assert [q.locked for q in items] == [True, False, True, True, True]
+    assert items[1].selected is None
+    view.answer_selected.emit(0, (questions[0].correct_index + 1) % 5)   # зафиксирован
+    view.answer_selected.emit(1, presenter._task.questions[1].correct_index)
+    view.check_requested.emit()
+    assert done and done[0][0] == 2
+    assert done[0][1].title == "Защита работы" and len(done[0][1].notes) == 10
+
+
+def test_about_window_uses_config():
+    from masslab import config
+    view = FakeMainView()
+    AppPresenter(view, random.Random(7), np_rng(), lambda p, r: None)
+    view.about_requested.emit()
+    title, html = view.last("show_about")
+    assert title == "О программе"
+    assert config.AUTHOR in html and config.APP_VERSION in html
 
 
 def test_sandbox_from_login_and_back():
@@ -564,6 +632,10 @@ def test_teacher_demo_reveals_answers_everywhere():
     assert view.alloy.last("set_options")[1] == alloy.options.index(alloy.alloy)
     assert tuple(view.alloy.last("set_element_choices")[1]) == alloy.alloy.major_symbols
     app._stages["task3"]._on_completed(1, None)
+    defense = app._stages["defense"]._task
+    items = view.defense.last("show_questions")[0]
+    assert [q.correct for q in items] == [q.correct_index for q in defense.questions]
+    app._stages["defense"]._on_completed(1, None)
     assert view.report.last("show_report")[0].verdict == "ДЕМОНСТРАЦИЯ"
 
     app.start()                                   # обычная сессия — ответы скрыты

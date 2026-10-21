@@ -2,8 +2,11 @@
 import time
 from datetime import datetime
 
+from masslab import config
+
 from masslab.model.session import STAGE_TITLES, STAGES, LabSession
 from masslab.presenters.alloy import AlloyPresenter
+from masslab.presenters.defense import DefensePresenter
 from masslab.presenters.demo import DemoPresenter
 from masslab.presenters.element import ElementPresenter
 from masslab.presenters.formatting import attempts_text, duration
@@ -16,12 +19,30 @@ from masslab.presenters.tour import TourPresenter
 
 THEMES = ("dark", "light")
 DEFAULT_THEME = "dark"
-STAGE_CHIPS = ("Тест", "Задание 1", "Задание 2", "Задание 3", "Итог")
+STAGE_CHIPS = ("Тест", "Задание 1", "Задание 2", "Задание 3", "Защита", "Итог")
 CLOSE_DURING_LAB = ("Лабораторная работа не завершена.\n"
                     "Результаты нигде не сохраняются и будут потеряны. Закрыть программу?")
 CLOSE_ON_REPORT = ("Итоговый результат будет закрыт и нигде не сохранится.\n"
                    "Если нужен отчёт, сначала сохраните его в PDF. Закрыть программу?")
-NEXT_STAGE = {"quiz": "task1", "task1": "task2", "task2": "task3", "task3": None}
+NEXT_STAGE = {"quiz": "task1", "task1": "task2", "task2": "task3", "task3": "defense",
+              "defense": None}
+
+
+def about_html():
+    c = config
+    return (
+        f"<h3>MassLab {c.APP_VERSION}</h3>"
+        "<p>Виртуальная лабораторная работа «Времяпролётный масс-спектрометр» "
+        "для курса «Физика ядра».</p>"
+        f"<p><b>Автор:</b> {c.AUTHOR}<br>"
+        f"<b>Научный руководитель:</b> {c.SUPERVISOR}<br>"
+        f"{c.UNIVERSITY}, {c.YEAR}</p>"
+        "<p>Модель прибора: время пролёта t = L·√(m / 2qU), ширина пиков от разброса "
+        "энергии ионов и разрешения детектора, изотопный состав элементов, "
+        "остаточный газ.</p>"
+        "<p>Python, Qt (PySide), NumPy, Matplotlib. Архитектура MVP (Passive View).</p>"
+        "<p>Программа не собирает и не сохраняет данные: ФИО, группа и результаты "
+        "существуют только до закрытия окна.</p>")
 
 
 class AppPresenter:
@@ -41,6 +62,8 @@ class AppPresenter:
                                       lambda n, r: self._on_stage_done("task2", n, r)),
             "task3": AlloyPresenter(view.alloy, rng, np_rng,
                                     lambda n, r: self._on_stage_done("task3", n, r)),
+            "defense": DefensePresenter(view.defense, rng,
+                                        lambda n, r: self._on_stage_done("defense", n, r)),
         }
         self._report = ReportPresenter(view.report, self._on_new_session, self._on_exit,
                                        write_pdf)
@@ -51,6 +74,7 @@ class AppPresenter:
         view.theory_requested.connect(self._on_theory)
         view.help_requested.connect(self._on_help)
         view.theme_toggled.connect(self._on_theme_toggled)
+        view.about_requested.connect(self._on_about)
         self._theme = DEFAULT_THEME          # только в памяти: не сохраняется между запусками
         view.set_theme(self._theme)
 
@@ -93,6 +117,10 @@ class AppPresenter:
         self._show_page("sandbox")
 
     def _enter(self, stage):
+        if stage == "defense":
+            defense = self._stages["defense"]
+            defense.element = self._stages["task2"].defense_result()
+            defense.alloy = self._stages["task3"].defense_result()
         self._session.start_stage(stage)
         self._stages[stage].start()
         self._show_page(stage)
@@ -131,6 +159,9 @@ class AppPresenter:
 
     def _on_theory(self):
         self._theory.open()
+
+    def _on_about(self):
+        self._view.show_about("О программе", about_html())
 
     @property
     def theme(self):

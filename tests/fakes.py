@@ -37,7 +37,7 @@ class FakeView:
 
 def workspace():
     return FakeView(["voltage_changed", "length_changed", "log_scale_toggled",
-                     "spectrum_hovered"])
+                     "spectrum_hovered", "spectrum_clicked"])
 
 
 def task_view(*events, **returns):
@@ -54,7 +54,7 @@ LOGIN_EVENTS = ("start_requested", "secret_entered", "teacher_demo_requested",
 class FakeMainView(FakeView):
     def __init__(self):
         super().__init__(["tick", "theory_requested", "help_requested", "tour_next",
-                          "tour_skip", "theme_toggled"], confirm=True)
+                          "tour_skip", "theme_toggled", "about_requested"], confirm=True)
         self.login = FakeView(LOGIN_EVENTS,
                               student_name="Иванов И. И.", student_group="ФИЗ-101")
         self.quiz = FakeView(["answer_selected", "next_requested", "prev_requested",
@@ -64,6 +64,7 @@ class FakeMainView(FakeView):
                               double_charge_enabled=False)
         self.element = task_view("check_requested")
         self.alloy = task_view("elements_check_requested", "check_requested")
+        self.defense = FakeView(["answer_selected", "check_requested"])
         self.report = FakeView(["new_session_requested", "exit_requested", "export_requested"])
         self.sandbox = task_view(*LAUNCHER_EVENTS, "gas_toggled", "exit_requested",
                                  selected_elements=lambda: ["H"], double_charge_enabled=True)

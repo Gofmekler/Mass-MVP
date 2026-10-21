@@ -1,3 +1,4 @@
+from masslab.model.defense import ElementResult
 from masslab.model.elements import ELEMENTS
 from masslab.model.session import STAGE_TITLES, StageReport
 from masslab.model.tasks import (CALIBRANTS, ELEMENT_HINTS, MASS_TOLERANCE, TIME_TOLERANCE,
@@ -18,11 +19,13 @@ class ElementPresenter:
         self._hints = HintTracker(view.show_hint, ELEMENT_HINTS)
         self._task = None
         self._attempts = 0
+        self.result = None           # ElementResult — для защиты работы
         self.reveal = False          # режим преподавателя: показывать ответ
         view.check_requested.connect(self._on_check)
         view.workspace.voltage_changed.connect(lambda _: self._show_answer())
 
     def start(self):
+        self.result = None
         self._task = ElementTask(self._rng)
         self._attempts = 0
         self._ws.reset()
@@ -30,6 +33,13 @@ class ElementPresenter:
         self._show_sample()
         self._view.show_feedback("", None)
         self._hints.reset()
+
+    def defense_result(self):
+        """Итог для защиты; без проверенного ответа — текущий образец с точным временем."""
+        if self.result is not None:
+            return self.result
+        e, ws = self._task.unknown, self._ws
+        return ElementResult(e.symbol, ws.voltage, ws.length, ws.tof.flight_time(e.mass) * 1e6)
 
     def _show_sample(self):
         self._view.clear_inputs()
@@ -68,6 +78,8 @@ class ElementPresenter:
         if result.passed:
             self._view.show_feedback("Верно! Задание 2 выполнено.", True)
             self._hints.reset()
+            self.result = ElementResult(self._task.unknown.symbol, self._ws.voltage,
+                                        self._ws.length, t_us)
             self._on_completed(self._attempts, self._report(t_us, mass))
             return
         e = self._task.unknown

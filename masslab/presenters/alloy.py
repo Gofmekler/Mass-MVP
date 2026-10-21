@@ -29,11 +29,13 @@ class AlloyPresenter:
         self._task = None
         self._attempts = 0
         self._step = 1
+        self.result = None           # определённый сплав — для защиты работы
         self.reveal = False          # режим преподавателя: показывать ответ
         view.elements_check_requested.connect(self._on_elements_check)
         view.check_requested.connect(self._on_check)
 
     def start(self):
+        self.result = None
         self._task = AlloyTask(self._rng)
         self._attempts = 0
         self._ws.reset()
@@ -41,6 +43,9 @@ class AlloyPresenter:
         self._show_sample()
         self._view.show_feedback("", None)
         self._hints.reset()
+
+    def defense_result(self):
+        return self.result if self.result is not None else self._task.alloy
 
     def _show_sample(self):
         task = self._task
@@ -104,6 +109,7 @@ class AlloyPresenter:
         if self._task.check(option):
             self._view.show_feedback("Верно! Задание 3 выполнено.", True)
             self._hints.reset()
+            self.result = self._task.alloy
             self._on_completed(self._attempts, self._report())
             return
         alloy = self._task.alloy

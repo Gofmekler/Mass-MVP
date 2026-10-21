@@ -296,7 +296,31 @@ def test_session_times_each_stage():
         assert not session.completed
         session.finish_stage(stage, attempts=i + 1)
     assert session.completed
-    assert [session.stage_duration(s) for s in STAGES] == [60, 120, 180, 240]
-    assert session.total_duration() == 600
+    assert [session.stage_duration(s) for s in STAGES] == [60, 120, 180, 240, 300]
+    assert session.total_duration() == 900
     clock.advance(1000)
-    assert session.total_duration() == 600
+    assert session.total_duration() == 900
+
+
+def test_defense_questions_for_every_alloy_and_element():
+    from masslab.model.alloys import ALLOYS
+    from masslab.model.defense import DefenseTask, ElementResult
+    from masslab.model.tasks import ELEMENT_POOL
+    rng = random.Random(5)
+    for alloy in ALLOYS:
+        for symbol in ELEMENT_POOL:
+            t = TOFPhysics(3000).flight_time(ELEMENTS[symbol].mass) * 1e6
+            task = DefenseTask(rng, ElementResult(symbol, 3000, 1.2, t), alloy)
+            for q in task.questions:
+                assert len(q.options) >= 4 and len(set(q.options)) == len(q.options)
+            heaviest = max(alloy.major_symbols, key=lambda s: ELEMENTS[s].mass)
+            assert task.questions[4].options[task.questions[4].correct_index].startswith(heaviest)
+    t_ar = TOFPhysics(4000).flight_time(ELEMENTS["F"].mass) * 1e6
+    task = DefenseTask(rng, ElementResult("F", 4000, 1.2, t_ar), ALLOYS[0])
+    q = task.questions[1]
+    new_u = int(q.text.split("при U = ")[2].split(" В")[0])
+    expected = t_ar * (4000 / new_u) ** 0.5
+    assert q.options[q.correct_index] == f"{expected:.2f}".replace(".", ",") + " мкс"
+    old = list(task.questions)
+    task.replace([0, 1, 2, 3, 4])
+    assert len(task.questions) == 5 and task.check([q.correct_index for q in task.questions]) == [True] * 5

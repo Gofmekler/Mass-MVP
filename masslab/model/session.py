@@ -2,12 +2,13 @@
 import time
 from dataclasses import dataclass
 
-STAGES = ("quiz", "task1", "task2", "task3")
+STAGES = ("quiz", "task1", "task2", "task3", "defense")
 STAGE_TITLES = {
     "quiz": "Входной тест",
     "task1": "Задание 1. Запуск ионов",
     "task2": "Задание 2. Неизвестный элемент",
     "task3": "Задание 3. Состав сплава",
+    "defense": "Защита работы",
 }
 
 

@@ -18,6 +18,7 @@ class WorkspaceView(QtWidgets.QWidget):
         self.length_changed = Event()
         self.log_scale_toggled = Event()
         self.spectrum_hovered = Event()
+        self.spectrum_clicked = Event()
         self._last_voltage = None
         self._last_length = None
 
@@ -39,8 +40,15 @@ class WorkspaceView(QtWidgets.QWidget):
         self._log = QtWidgets.QCheckBox("Логарифмическая шкала")
         self._params = label("", "muted")
         self._readout = QtWidgets.QLabel()
+        self._readout.setWordWrap(True)
         themed(self._readout,
                lambda: f"color: {color('highlight')}; font-size: 13px; padding: 2px 4px;")
+        self._measurement = QtWidgets.QLabel()
+        self._measurement.setWordWrap(True)
+        self._measurement.hide()
+        themed(self._measurement, lambda: (
+            f"color: {color('text')}; background: {color('panel')}; font-size: 13px; "
+            f"border: 1px solid {color('highlight')}; border-radius: 4px; padding: 3px 6px;"))
         self._spectrum = PlotWidget()
         self._trajectories = PlotWidget()
         self._scheme = SchemeWidget()
@@ -72,6 +80,7 @@ class WorkspaceView(QtWidgets.QWidget):
         top_layout.setSpacing(0)
         top_layout.addWidget(self._spectrum, 1)
         top_layout.addWidget(self._readout)
+        top_layout.addWidget(self._measurement)
         splitter.addWidget(top)
         splitter.addWidget(self.bottom_tabs)
         splitter.setStretchFactor(0, 3)
@@ -96,12 +105,14 @@ class WorkspaceView(QtWidgets.QWidget):
         self._length_spin.valueChanged.connect(self._emit_length)
         self._log.toggled.connect(self.log_scale_toggled.emit)
         self._spectrum.hovered.connect(self.spectrum_hovered.emit)
+        self._spectrum.clicked.connect(self.spectrum_clicked.emit)
 
     def tour_targets(self):
         return {"voltage": _Row(self, 0),
                 "length": _Row(self, 1),
                 "parameters": self._params, "log": self._log,
                 "spectrum": self._spectrum, "readout": self._readout,
+                "measurement": self._measurement,
                 "trajectories": self.bottom_tabs}
 
     @staticmethod
@@ -193,6 +204,13 @@ class WorkspaceView(QtWidgets.QWidget):
 
     def set_readout(self, text):
         self._readout.setText(text)
+
+    def show_pins(self, pins):
+        self._spectrum.show_pins(pins)
+
+    def set_measurement(self, text):
+        self._measurement.setText(text)
+        self._measurement.setVisible(bool(text))
 
 
 class _Row:

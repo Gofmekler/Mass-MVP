@@ -118,6 +118,9 @@ def test_app_runs_through_all_pages(window):
     for stage in ("task1", "task2", "task3"):
         window.tour_skip.emit()
         app._stages[stage]._on_completed(1, StageReport(stage))
+    assert window._stack.currentWidget() is window.defense
+    assert len(window.defense._question_widgets) == 5
+    app._stages["defense"]._on_completed(1, StageReport("defense"))
     assert window._stack.currentWidget() is window.report
     assert window.report._verdict.text() == "ЗАЧТЕНО"
     assert window.report._qr.isVisibleTo(window.report)

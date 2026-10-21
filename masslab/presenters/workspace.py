@@ -21,7 +21,9 @@ FIELD_COLOR = "#4FC3F7"
 ACCEL_GAP = 0.15       # м
 ACCEL_POINTS = 24
 LOG_FLOOR = 1e-4
-HINT = "Наведите курсор на пик спектра, чтобы измерить время пролёта"
+HINT = ("Наведите курсор на пик, чтобы измерить время пролёта; "
+        "щёлкните по двум пикам, чтобы сравнить их")
+PIN_LABELS = ("1", "2")
 EMPTY = "Запустите ионы, чтобы получить спектр"
 
 
@@ -41,11 +43,13 @@ class WorkspacePresenter:
         self._peaks = []
         self._found = []
         self._t_max = 0.0
+        self._pins = []                 # времена отмеченных щелчком пиков, с
         self.last_spectrum = None       # PlotData последнего спектра (для отчёта)
         view.voltage_changed.connect(self._on_voltage_changed)
         view.length_changed.connect(self._on_length_changed)
         view.log_scale_toggled.connect(self._on_log_toggled)
         view.spectrum_hovered.connect(self._on_hover)
+        view.spectrum_clicked.connect(self._on_click)
         view.set_voltage_range(VOLTAGE_MIN, VOLTAGE_MAX, VOLTAGE_STEP)
         view.set_length_range(LENGTH_MIN, LENGTH_MAX, LENGTH_STEP)
         view.set_length_visible(adjustable_length)
@@ -76,6 +80,7 @@ class WorkspacePresenter:
         self._view.clear_plots(EMPTY)
         self._view.hide_cursor()
         self._view.set_readout(HINT)
+        self._clear_pins()
 
     def set_peaks(self, peaks):
         self._peaks = list(peaks)
@@ -114,14 +119,21 @@ class WorkspacePresenter:
         self._log = bool(enabled)
         self._render(animate=False)
 
+    def _nearest_peak(self, x_us):
+        """Найденный пик рядом с x (мкс) или None."""
+        if x_us is None or not self._found:
+            return None
+        snap = 0.015 * self._t_max * 1e6
+        nearest = min(self._found, key=lambda p: abs(p.time * 1e6 - x_us))
+        return nearest if abs(nearest.time * 1e6 - x_us) <= snap else None
+
     def _on_hover(self, x_us):
         if x_us is None or not self._found:
             self._view.hide_cursor()
             self._view.set_readout(HINT)
             return
-        snap = 0.015 * self._t_max * 1e6
-        nearest = min(self._found, key=lambda p: abs(p.time * 1e6 - x_us))
-        if abs(nearest.time * 1e6 - x_us) <= snap:
+        nearest = self._nearest_peak(x_us)
+        if nearest is not None:
             t = nearest.time
             text = f"Пик: t = {num(t * 1e6, 3)} мкс"
             if self._show_mass:
@@ -133,6 +145,47 @@ class WorkspacePresenter:
             text = f"t = {num(x_us, 3)} мкс"
             self._view.show_cursor(x_us, None, text)
         self._view.set_readout(text)
+
+    # --- сравнение двух пиков -------------------------------------------
+
+    def _on_click(self, x_us):
+        peak = self._nearest_peak(x_us)
+        if peak is None:
+            if self._found:
+                self._view.set_measurement("Щёлкните точно по пику, чтобы отметить его.")
+            return
+        if peak.time in self._pins:
+            return
+        if len(self._pins) == len(PIN_LABELS):
+            self._pins = []
+        self._pins = sorted(self._pins + [peak.time])
+        self._show_pins()
+
+    def _clear_pins(self):
+        self._pins = []
+        self._view.show_pins([])
+        self._view.set_measurement("")
+
+    def _show_pins(self):
+        self._view.show_pins([(t * 1e6, label) for t, label in zip(self._pins, PIN_LABELS)])
+        self._view.set_measurement(self.measurement_text())
+
+    def _peak_text(self, index, t):
+        text = f"t{'₁₂'[index]} = {num(t * 1e6, 3)} мкс"
+        if self._show_mass:
+            text += f" (m/z ≈ {num(self.tof.mass_from_time(t), 1)})"
+        return text
+
+    def measurement_text(self):
+        if not self._pins:
+            return ""
+        if len(self._pins) == 1:
+            return f"Пик 1: {self._peak_text(0, self._pins[0])}. Щёлкните по второму пику."
+        t1, t2 = self._pins
+        ratio = t2 / t1
+        return (f"{self._peak_text(0, t1)},  {self._peak_text(1, t2)}\n"
+                f"Δt = {num((t2 - t1) * 1e6, 3)} мкс,  t₂/t₁ = {num(ratio, 3)},  "
+                f"m₂/m₁ = (t₂/t₁)² ≈ {num(ratio ** 2, 3)}")
 
     # --- построение графиков -------------------------------------------
 
@@ -168,6 +221,7 @@ class WorkspacePresenter:
         self._view.show_scheme(self._scheme(tof, colors))
         self._view.hide_cursor()
         self._view.set_readout(HINT)
+        self._clear_pins()             # при смене U или L времена пиков другие
 
     def _colors(self):
         colors, i = {}, 0

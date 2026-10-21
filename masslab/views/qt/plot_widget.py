@@ -49,6 +49,7 @@ def _label_levels(markers, x_lim):
 
 class PlotWidget(QtWidgets.QWidget):
     hovered = QtCore.Signal(object)   # x в координатах данных или None
+    clicked = QtCore.Signal(float)    # x в координатах данных
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -63,6 +64,8 @@ class PlotWidget(QtWidgets.QWidget):
         layout.addWidget(self._canvas)
 
         self._cursor = []
+        self._pins = []               # художники отметок пиков
+        self._pin_data = []           # [(x, подпись)] — для перерисовки
         self._animated = []           # [(line, dot, x, y)]
         self._anim_x_min = self._anim_x_max = 0.0
         self._frame = 0
@@ -72,12 +75,14 @@ class PlotWidget(QtWidgets.QWidget):
 
         self._canvas.mpl_connect("motion_notify_event", self._on_motion)
         self._canvas.mpl_connect("axes_leave_event", lambda _: self.hovered.emit(None))
+        self._canvas.mpl_connect("button_press_event", self._on_press)
         self.clear()
 
     def _reset_axes(self):
         self._timer.stop()
         self._animated = []
         self._cursor = []
+        self._pins = []
         ax = self._ax
         ax.clear()
         self._fig.set_facecolor(color("plot_bg"))
@@ -92,11 +97,13 @@ class PlotWidget(QtWidgets.QWidget):
         kind, payload = self._last
         if kind == "plot":
             self.render(payload)
+            self.show_pins(self._pin_data)
         else:
             self.clear(payload)
 
     def clear(self, message=""):
         self._last = ("clear", message)
+        self._pin_data = []
         self._reset_axes()
         self._ax.set_xticks([])
         self._ax.set_yticks([])
@@ -181,6 +188,25 @@ class PlotWidget(QtWidgets.QWidget):
             ha="right" if right else "left", color=mark, fontsize=10,
             bbox=dict(boxstyle="round,pad=0.3", fc=color("panel"), ec=mark, alpha=0.9)))
         self._canvas.draw_idle()
+
+    def show_pins(self, pins):
+        """Отметки выбранных пиков: пунктир и номер у нижнего края."""
+        for artist in self._pins:
+            artist.remove()
+        self._pins = []
+        self._pin_data = list(pins)
+        mark = color("highlight")
+        for x, text in pins:
+            self._pins.append(self._ax.axvline(x, color=mark, linestyle="--", linewidth=1.2))
+            self._pins.append(self._ax.annotate(
+                text, xy=(x, 0.02), xycoords=("data", "axes fraction"),
+                xytext=(4, 0), textcoords="offset points", color=mark, fontsize=10,
+                fontweight="bold"))
+        self._canvas.draw_idle()
+
+    def _on_press(self, event):
+        if event.inaxes is self._ax and event.button == 1 and event.xdata is not None:
+            self.clicked.emit(float(event.xdata))
 
     def hide_cursor(self, redraw=True):
         for artist in self._cursor:

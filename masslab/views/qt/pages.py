@@ -2,7 +2,8 @@
 from masslab.events import Event
 from masslab.views.qt.qt import QtCore, QtGui, QtWidgets, exec_app
 from masslab.views.qt.style import color, feedback_style, themed
-from masslab.views.qt.widgets import QuestionWidget, ReferenceTable, label, scrollable
+from masslab.views.qt.widgets import (FeedbackLabel, HintBox, QuestionWidget, ReferenceTable,
+                                      label, scrollable)
 
 try:
     import qrcode
@@ -135,6 +136,62 @@ class LoginView(QtWidgets.QWidget):
         self._error.clear()
         self._secret.clear()
         self._name.setFocus()
+
+
+class DefenseView(QtWidgets.QWidget):
+    """IDefenseView: вопросы по результатам заданий 2 и 3."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.answer_selected = Event()
+        self.check_requested = Event()
+        outer, layout = _card()
+        intro = label("Ответьте на вопросы о результатах, которые вы получили в заданиях 2 и 3. "
+                      "Верные ответы фиксируются, неверные вопросы заменяются новыми.",
+                      wrap=True)
+        self._summary = HintBox(style=HintBox.GREEN)
+        self._questions_layout = QtWidgets.QVBoxLayout()
+        self._questions_layout.setSpacing(14)
+        self._question_widgets = []
+        self._check = _button("Проверить ответы", primary=True)
+        self._check.clicked.connect(self.check_requested.emit)
+        self._feedback = FeedbackLabel()
+        self._hint = HintBox()
+        layout.addWidget(label("Защита работы", "title"))
+        layout.addWidget(intro)
+        layout.addWidget(self._summary)
+        layout.addSpacing(8)
+        layout.addLayout(self._questions_layout)
+        layout.addSpacing(8)
+        layout.addWidget(self._check)
+        layout.addWidget(self._feedback)
+        layout.addWidget(self._hint)
+        layout.addStretch(1)
+        page = QtWidgets.QVBoxLayout(self)
+        page.setContentsMargins(0, 0, 0, 0)
+        page.addWidget(scrollable(outer))
+
+    def show_summary(self, text):
+        self._summary.show_hint(text)
+
+    def show_questions(self, questions):
+        if len(self._question_widgets) != len(questions):
+            for w in self._question_widgets:
+                w.deleteLater()
+            self._question_widgets = []
+            for i in range(len(questions)):
+                w = QuestionWidget(font_size=14)
+                w.selected.connect(lambda option, q=i: self.answer_selected.emit(q, option))
+                self._questions_layout.addWidget(w)
+                self._question_widgets.append(w)
+        for i, (w, q) in enumerate(zip(self._question_widgets, questions)):
+            w.set_question(f"{i + 1}. {q.text}", q.options, q.selected, q.locked, q.correct)
+
+    def show_feedback(self, text, ok):
+        self._feedback.show_feedback(text, ok)
+
+    def show_hint(self, text):
+        self._hint.show_hint(text)
 
 
 class QuizView(QtWidgets.QWidget):

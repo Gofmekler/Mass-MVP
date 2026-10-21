@@ -1,5 +1,5 @@
 from masslab.events import Event
-from masslab.views.qt.pages import LoginView, QuizView, ReportView
+from masslab.views.qt.pages import DefenseView, LoginView, QuizView, ReportView
 from masslab.views.qt.qt import QtCore, QtWidgets, exec_app
 from masslab.views.qt import style
 from masslab.views.qt.style import color, themed
@@ -25,6 +25,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tour_next = Event()
         self.tour_skip = Event()
         self.theme_toggled = Event()
+        self.about_requested = Event()
         self._close_text = None
 
         self.login = LoginView()
@@ -32,11 +33,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.demo = DemoView()
         self.element = ElementView()
         self.alloy = AlloyView()
+        self.defense = DefenseView()
         self.report = ReportView()
         self.sandbox = SandboxView()
         self.theory = TheoryView(self)
         self._pages = {"login": self.login, "quiz": self.quiz, "task1": self.demo,
-                       "task2": self.element, "task3": self.alloy, "report": self.report,
+                       "task2": self.element, "task3": self.alloy, "defense": self.defense,
+                       "report": self.report,
                        "sandbox": self.sandbox}
         self._stack = QtWidgets.QStackedWidget()
         for page in self._pages.values():
@@ -80,6 +83,12 @@ class MainWindow(QtWidgets.QMainWindow):
         header_layout.addWidget(self._theme_button)
         header_layout.addWidget(self._theory_button)
         header_layout.addWidget(self._help_button)
+        self._about_button = QtWidgets.QPushButton("i")
+        self._about_button.setToolTip("О программе")
+        self._about_button.setFixedWidth(36)
+        self._about_button.setStyleSheet("font-weight: bold; font-style: italic;")
+        self._about_button.clicked.connect(self.about_requested.emit)
+        header_layout.addWidget(self._about_button)
 
         central = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout(central)
@@ -125,9 +134,10 @@ class MainWindow(QtWidgets.QMainWindow):
                 self._chips_layout.addWidget(chip)
                 self._chips.append(chip)
         for chip, (title, state) in zip(self._chips, stages):
-            chip.setText(("✓ " if state == "done" else "") + title)
+            chip.setText(title)     # пройденный этап — зелёный (без «✓»: шапка и так тесная)
+            chip.setToolTip(f"{title}: выполнено" if state == "done" else title)
             themed(chip, lambda state=state:
-                   style.chip_style(state) + " padding: 3px 8px; border-radius: 9px;")
+                   style.chip_style(state) + " padding: 3px 7px; border-radius: 9px;")
 
     def set_theme(self, name):
         style.apply_theme(self, name)
@@ -140,6 +150,13 @@ class MainWindow(QtWidgets.QMainWindow):
     def set_timer(self, text):
         self._timer.setText(text)
         self._timer.setToolTip(text)
+
+    def show_about(self, title, html):
+        box = QtWidgets.QMessageBox(QtWidgets.QMessageBox.NoIcon, title, html,
+                                    QtWidgets.QMessageBox.NoButton, self)
+        box.setTextFormat(QtCore.Qt.RichText)
+        box.addButton("Закрыть", QtWidgets.QMessageBox.AcceptRole)
+        exec_app(box)
 
     def show_message(self, title, text):
         box = QtWidgets.QMessageBox(QtWidgets.QMessageBox.Information, title, text,
